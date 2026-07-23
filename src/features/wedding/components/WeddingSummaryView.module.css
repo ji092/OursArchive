@@ -1,0 +1,172 @@
+.grid {
+  display: grid;
+  grid-template-columns: 60fr 40fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.columnLeft,
+.columnRight {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--color-surface);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cardHeader .cardTitle {
+  margin-bottom: 0;
+}
+
+.cardLink {
+  font-size: 12px;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.categoryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.categoryLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.categoryValue {
+  font-family: var(--font-numeric);
+  font-size: 14px;
+}
+
+.progressTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-bg-soft);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.budgetRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.budgetRow > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.budgetLabel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.budgetValue {
+  font-family: var(--font-numeric);
+  font-size: 14px;
+}
+
+.budgetPercent {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.nextEvent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nextEventTitle {
+  margin: 0;
+  font-size: 15px;
+}
+
+.nextEventMeta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.noteRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.noteRow:first-of-type {
+  border-top: none;
+}
+
+.noteVendor {
+  flex: 1;
+}
+
+.noteDate {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.badgeDone,
+.badgeScheduled {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.badgeDone {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.badgeScheduled {
+  background: #fbeced;
+  color: #b3554f;
+}

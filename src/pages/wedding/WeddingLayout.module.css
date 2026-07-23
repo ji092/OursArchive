@@ -1,0 +1,96 @@
+.page {
+  /* 결혼(하나가) 챕터 테마 — 이 안의 모든 컴포넌트가 var(--color-accent)를 초록으로 이어받는다. */
+  --color-accent: var(--color-wedding-accent);
+  --color-accent-hover: var(--color-wedding-accent-hover);
+  --color-accent-soft: var(--color-wedding-accent-soft);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px clamp(24px, 6vw, 96px) 64px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  color: var(--color-accent);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(24px, 3.5vw, 32px);
+  font-weight: 400;
+}
+
+.titleAccent {
+  color: var(--color-accent);
+  font-family: var(--font-accent);
+  font-style: italic;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.summaryCards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 96px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--color-bg-soft);
+}
+
+.summaryLabel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.summaryValue {
+  font-family: var(--font-numeric);
+  font-size: 18px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 24px 0 28px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.tab:hover {
+  background: var(--color-bg-soft);
+}
+
+.tabActive {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}

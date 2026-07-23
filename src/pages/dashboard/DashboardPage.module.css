@@ -1,0 +1,222 @@
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 48px clamp(24px, 6vw, 96px) 64px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  color: var(--color-accent);
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.titleAccent {
+  color: var(--color-accent);
+  font-family: var(--font-accent);
+  font-style: italic;
+}
+
+.subtitle {
+  margin: 12px 0 28px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.heroRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ctaGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.ctaPrimary,
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.ctaPrimary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.ctaPrimary img {
+  filter: brightness(0) invert(1);
+}
+
+.ctaPrimary:hover {
+  background: var(--color-accent-hover);
+}
+
+.ctaSecondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.summaryCards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 108px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  text-decoration: none;
+}
+
+.summaryCardStart {
+  background: var(--color-bg-soft);
+}
+
+.summaryCardLove {
+  background: #eaf3fb;
+}
+
+.summaryCardWedding {
+  background: #eaf7ee;
+}
+
+.summaryCardPregnancy {
+  background: #fbeced;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.summaryValue {
+  font-family: var(--font-numeric);
+  font-size: 20px;
+  color: var(--color-text);
+}
+
+/* ---------- Recent ---------- */
+
+.calendarSection {
+  padding: 40px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.recent {
+  padding-top: 40px;
+}
+
+.recentTitle {
+  margin: 0 0 20px;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .recentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recentCard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  background: var(--color-surface);
+}
+
+.recentImage {
+  height: 140px;
+  background: linear-gradient(135deg, #f7c98e, #f4a89a);
+}
+
+.recentBody {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recentTag {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+
+.recentText {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.recentMeta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.progressTrack {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-bg-soft);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.progressLabel {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

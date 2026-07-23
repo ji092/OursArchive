@@ -1,0 +1,46 @@
+:root {
+  /* 옅은 하늘색 + 흰색 + 검정 글씨, 유행 타지 않는 심플한 톤 (요구사항 11.1 디자인 방향) */
+  --color-bg: #fbfeff;
+  --color-bg-soft: #f4f8fb;
+  --color-footer-bg: #f6fbfd;
+  --color-surface: #ffffff;
+  --color-border: #e3eaf0;
+  --color-text: #14181c;
+  --color-text-muted: #6b7684;
+  /* 기본(메인/함께)은 하늘색. 하나가(결혼)=초록, 셋이(임신)=주황 — 각 챕터 페이지 루트에서
+     --color-accent 계열을 덮어써서 그 안의 모든 컴포넌트(공용 컴포넌트 포함)가 자동으로
+     테마를 따라가게 한다 (2026-07-23, Readdy 원본 재확인 후 복원). */
+  --color-accent: #5aafdf;
+  --color-accent-hover: #4391c4;
+  --color-accent-soft: #e8f2fa;
+
+  --color-wedding-accent: #8baf97;
+  --color-wedding-accent-hover: #4e6f5d;
+  --color-wedding-accent-soft: #ebf5ee;
+
+  --color-pregnancy-accent: #f39484;
+  --color-pregnancy-accent-hover: #aa5a53;
+  --color-pregnancy-accent-soft: #fbeced;
+
+  --color-danger: #e0554f;
+  --font-body: 'Noto Sans KR', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-accent: 'Playfair Display', 'Noto Sans KR', serif;
+  --font-serif-brand: 'Times New Roman', Times, serif;
+  --font-numeric: 'Times New Roman', Times, 'Noto Sans KR', serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+a {
+  color: inherit;
+}

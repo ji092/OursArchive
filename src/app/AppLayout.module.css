@@ -1,0 +1,16 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  padding-top: 32px; /* 헤더(.inner) 높이(64px)의 절반만큼 여백을 줘서 헤더와 바디가 붙어 보이지 않게 */
+}
+
+@media (max-width: 640px) {
+  .shell {
+    padding-bottom: 64px; /* MobileTabBar 높이만큼 콘텐츠가 가려지지 않게 */
+  }
+}

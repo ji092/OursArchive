@@ -1,0 +1,173 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.monthLabel {
+  font-size: 17px;
+  min-width: 96px;
+  text-align: center;
+}
+
+.navButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.weekday {
+  padding: 4px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cellBlank {
+  aspect-ratio: 1.5;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 4px 4px;
+}
+
+.cellSelected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.cellDate {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 20px;
+}
+
+.cellMarker {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cellMarker img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.cellMarkerCount {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* 숫자·사진아이콘 줄 아래, 가운데 정렬. 일정이 여러 개면 세로로 쌓는다. */
+.cellSchedule {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.cellScheduleDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+.dayPanel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-soft);
+}
+
+.dayPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dayPanelTitle {
+  margin: 0;
+  font-size: 14px;
+}
+
+.dayPanelClose {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.dayPanelEmpty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.dayPanelItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dayPanelItem:first-child {
+  border-top: none;
+}
+
+.dayPanelItemAuthor {
+  font-size: 13px;
+}
+
+.dayPanelItemBody {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.dayPanelItemPlace {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

@@ -1,0 +1,65 @@
+# ===== 환경변수 / 비밀키 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials.json
+serviceAccountKey.json
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== IDE / 에디터 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Node.js =====
+node_modules/
+dist/
+build/
+.next/
+out/
+.turbo/
+.ts-build/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# ===== 데이터베이스 / 로컬 데이터 =====
+*.sqlite
+*.sqlite3
+*.db
+
+# ===== 테스트 / 커버리지 =====
+coverage/
+.coverage
+htmlcov/
+
+# ===== 기타 임시 파일 =====
+tmp/
+temp/
+*.tmp
+
+# ===== 작업 문서 / AI 작업 흔적 (Notion이 원본, git에 올리지 않음) =====
+docs/
+.claude/
+CLAUDE.md
+*.claude.md

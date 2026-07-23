@@ -1,0 +1,66 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--color-surface);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.thumbWrap {
+  position: relative;
+  height: 160px;
+}
+
+.thumb {
+  height: 100%;
+}
+
+.weekBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-numeric);
+  font-size: 11px;
+}
+
+.ultrasoundBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.body {
+  padding: 12px 14px 14px;
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.text {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
