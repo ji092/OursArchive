@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import type { WorkspaceSettings } from '@/shared/lib/workspace/workspaceSettingsApi';
+import { useApproveJoinRequest, useJoinRequests, useRejectJoinRequest } from '../hooks/useJoinRequests';
 import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '../hooks/useMembers';
+import type { JoinRequest } from '../joinRequestsApi';
 import { ROLE_LABELS, type MemberRole } from '../types';
 import styles from './AdminView.module.css';
 
@@ -22,6 +24,9 @@ const DATE_FIELDS: { key: keyof WorkspaceSettings; label: string; description: s
 ];
 
 export function AdminView() {
+  const { data: joinRequests } = useJoinRequests();
+  const approveJoinRequest = useApproveJoinRequest();
+  const rejectJoinRequest = useRejectJoinRequest();
   const { data: members } = useMembers();
   const updateRole = useUpdateMemberRole();
   const removeMember = useRemoveMember();
@@ -99,6 +104,23 @@ export function AdminView() {
         </button>
       </div>
 
+      {joinRequests && joinRequests.length > 0 && (
+        <div className={styles.joinRequestSection}>
+          <p className={styles.listTitle}>가입 요청 {joinRequests.length}건</p>
+          <p className={styles.dateSectionHint}>OAuth로 로그인해 가입을 요청한 사람들이에요. 역할을 정해 승인하거나 거절하세요.</p>
+          <div className={styles.joinRequestList}>
+            {joinRequests.map((request) => (
+              <JoinRequestRow
+                key={request.id}
+                request={request}
+                onApprove={(role) => approveJoinRequest.mutate({ id: request.id, role })}
+                onReject={() => rejectJoinRequest.mutate(request.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className={styles.summaryRow}>
         {ROLE_ORDER.map((role) => (
           <div key={role} className={styles.summaryCard}>
@@ -166,5 +188,38 @@ export function AdminView() {
         ))}
       </div>
     </main>
+  );
+}
+
+function JoinRequestRow({
+  request,
+  onApprove,
+  onReject,
+}: {
+  request: JoinRequest;
+  onApprove: (role: Exclude<MemberRole, 'master'>) => void;
+  onReject: () => void;
+}) {
+  const [role, setRole] = useState<Exclude<MemberRole, 'master'>>('family');
+
+  return (
+    <div className={styles.joinRequestRow}>
+      <span className={styles.avatar} aria-hidden="true" />
+      <div className={styles.info}>
+        <p className={styles.name}>{request.name ?? '이름 미확인'}</p>
+        {request.joinMessage && <p className={styles.joinMessage}>“{request.joinMessage}”</p>}
+      </div>
+      <select className={styles.roleSelect} value={role} onChange={(e) => setRole(e.target.value as Exclude<MemberRole, 'master'>)}>
+        <option value="partner">애인</option>
+        <option value="family">가족</option>
+        <option value="guest">게스트</option>
+      </select>
+      <button type="button" className={styles.approveButton} onClick={() => onApprove(role)}>
+        승인
+      </button>
+      <button type="button" className={styles.rejectButton} onClick={onReject}>
+        거절
+      </button>
+    </div>
   );
 }

@@ -1,9 +1,20 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
-import { useCreateLoveRecord } from '../hooks/useCreateLoveRecord';
+import { useCreateLoveRecord, useUpdateLoveRecord } from '../hooks/useCreateLoveRecord';
+import { useLoveRecords } from '../hooks/useLoveRecords';
 import { CURRENT_AUTHOR_NAME, LOVE_AUTHORS } from '../mockAuth';
+import type { LoveRecord } from '../mockLoveRecords';
 import styles from './LoveCreateForm.module.css';
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const MAX_PHOTOS = 10;
 const MAX_BODY_LENGTH = 2000;
@@ -25,9 +36,18 @@ function nowTimeValue(): string {
 
 export function LoveCreateForm() {
   const navigate = useNavigate();
-  const { mutate, isPending } = useCreateLoveRecord();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const { data: records } = useLoveRecords();
+  const editingRecord = editId ? records?.find((record) => record.id === editId) : undefined;
+  const isEditMode = !!editId;
+
+  const { mutate: createRecord, isPending: isCreating } = useCreateLoveRecord();
+  const { mutate: updateRecord, isPending: isUpdating } = useUpdateLoveRecord();
+  const isPending = isCreating || isUpdating;
 
   const [authorName, setAuthorName] = useState<string>(CURRENT_AUTHOR_NAME);
+  const [existingPhotos, setExistingPhotos] = useState<LoveRecord['photos']>([]);
   const [photos, setPhotos] = useState<{ file: File; previewUrl: string }[]>([]);
   const [body, setBody] = useState('');
   const [date, setDate] = useState(nowDateValue());
@@ -38,6 +58,27 @@ export function LoveCreateForm() {
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
   const [errors, setErrors] = useState<{ body?: string; placeName?: string }>({});
+  const [hasPrefilled, setHasPrefilled] = useState(false);
+
+  // 수정 모드일 때 기존 기록 값으로 폼을 한 번만 채운다 (레코드 로딩 타이밍 때문에 useEffect로 처리).
+  useEffect(() => {
+    if (!editingRecord || hasPrefilled) return;
+    setAuthorName(editingRecord.authorName);
+    setBody(editingRecord.body);
+    const recordedDate = new Date(editingRecord.recordedAt);
+    setDate(recordedDate.toISOString().slice(0, 10));
+    setTime(recordedDate.toTimeString().slice(0, 5));
+    setPlaceName(editingRecord.placeName);
+    if (editingRecord.lat != null && editingRecord.lng != null) {
+      setPlaceCoords({ lat: editingRecord.lat, lng: editingRecord.lng });
+    }
+    setExistingPhotos(editingRecord.photos);
+    setHasPrefilled(true);
+  }, [editingRecord, hasPrefilled]);
+
+  function removeExistingPhoto(index: number) {
+    setExistingPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
 
   // 카카오 로컬 검색 API(장소검색/주소검색)를 300ms 디바운스로 호출한다.
   useEffect(() => {
@@ -68,7 +109,7 @@ export function LoveCreateForm() {
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
-    const room = MAX_PHOTOS - photos.length;
+    const room = MAX_PHOTOS - existingPhotos.length - photos.length;
     const accepted = files.slice(0, room).map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
     setPhotos((prev) => [...prev, ...accepted]);
     event.target.value = '';
@@ -81,7 +122,7 @@ export function LoveCreateForm() {
     });
   }
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     // 요구사항 3.2.6: 장소·날짜는 예외 없이 필수 (지도·달력 뷰가 항상 채워지도록).
@@ -92,19 +133,27 @@ export function LoveCreateForm() {
     if (Object.keys(nextErrors).length > 0) return;
 
     const recordedAt = new Date(`${date}T${time}:00`).toISOString();
+    const newPhotoDataUrls = await Promise.all(photos.map((photo) => fileToDataUrl(photo.file)));
+    const photoDataUrls = [
+      ...existingPhotos.map((photo) => photo.imageUrl).filter((url): url is string => !!url),
+      ...newPhotoDataUrls,
+    ];
 
-    mutate(
-      {
-        authorName,
-        body: body.trim(),
-        placeName: placeName.trim(),
-        lat: placeCoords?.lat,
-        lng: placeCoords?.lng,
-        recordedAt,
-        photoCount: photos.length,
-      },
-      { onSuccess: () => navigate('/love') },
-    );
+    const payload = {
+      authorName,
+      body: body.trim(),
+      placeName: placeName.trim(),
+      lat: placeCoords?.lat,
+      lng: placeCoords?.lng,
+      recordedAt,
+      photoDataUrls,
+    };
+
+    if (isEditMode && editingRecord) {
+      updateRecord({ id: editingRecord.id, ...payload }, { onSuccess: () => navigate(`/love?record=${editingRecord.id}`) });
+    } else {
+      createRecord(payload, { onSuccess: () => navigate('/love') });
+    }
   }
 
   return (
@@ -127,15 +176,37 @@ export function LoveCreateForm() {
 
       <div className={styles.field}>
         <label className={styles.label}>
-          사진·영상 <span className={styles.optional}>{photos.length}/{MAX_PHOTOS}</span>
+          사진·영상{' '}
+          <span className={styles.optional}>
+            {existingPhotos.length + photos.length}/{MAX_PHOTOS}
+          </span>
         </label>
         <label className={styles.dropzone}>
-          <input type="file" accept="image/*,video/mp4" multiple hidden onChange={handlePhotoChange} disabled={photos.length >= MAX_PHOTOS} />
+          <input
+            type="file"
+            accept="image/*,video/mp4"
+            multiple
+            hidden
+            onChange={handlePhotoChange}
+            disabled={existingPhotos.length + photos.length >= MAX_PHOTOS}
+          />
           사진이나 영상을 클릭해서 선택
           <span className={styles.dropzoneHint}>JPG, PNG, GIF, MP4 · 최대 10개</span>
         </label>
-        {photos.length > 0 && (
+        {(existingPhotos.length > 0 || photos.length > 0) && (
           <div className={styles.photoGrid}>
+            {existingPhotos.map((photo, index) => (
+              <div key={`existing-${index}`} className={styles.photoItem}>
+                {photo.imageUrl ? (
+                  <img src={photo.imageUrl} alt={`첨부 ${index + 1}`} className={styles.photoPreview} />
+                ) : (
+                  <div className={styles.photoPreview} style={{ background: photo.gradient }} />
+                )}
+                <button type="button" className={styles.photoRemove} onClick={() => removeExistingPhoto(index)} aria-label="삭제">
+                  ✕
+                </button>
+              </div>
+            ))}
             {photos.map((photo, index) => (
               <div key={photo.previewUrl} className={styles.photoItem}>
                 {photo.file.type.startsWith('video') ? (
@@ -231,7 +302,7 @@ export function LoveCreateForm() {
       </div>
 
       <button type="submit" className={styles.submit} disabled={isPending}>
-        {isPending ? '저장 중…' : '기록 저장하기'}
+        {isPending ? '저장 중…' : isEditMode ? '수정 저장하기' : '기록 저장하기'}
       </button>
     </form>
   );

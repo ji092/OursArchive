@@ -13,6 +13,7 @@ alter table vendor_contact enable row level security;
 alter table attachment enable row level security;
 alter table honeymoon enable row level security;
 alter table honeymoon_day enable row level security;
+alter table honeymoon_day_photo enable row level security;
 alter table wedding_day_schedule enable row level security;
 
 create policy prep_item_all on prep_item
@@ -60,6 +61,15 @@ create policy honeymoon_all on honeymoon
 create policy honeymoon_day_all on honeymoon_day
   for all using (
     exists (select 1 from honeymoon h where h.id = honeymoon_day.honeymoon_id and can_access_couple_content(h.workspace_id))
+  );
+
+create policy honeymoon_day_photo_all on honeymoon_day_photo
+  for all using (
+    exists (
+      select 1 from honeymoon_day d
+      join honeymoon h on h.id = d.honeymoon_id
+      where d.id = honeymoon_day_photo.day_id and can_access_couple_content(h.workspace_id)
+    )
   );
 
 create policy wedding_day_schedule_all on wedding_day_schedule

@@ -1,5 +1,6 @@
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { RecordDetailModal } from '@/shared/components/record/RecordDetailModal';
+import { useDeleteLoveRecord } from '../hooks/useCreateLoveRecord';
 import { useAddLoveComment, useDeleteLoveComment } from '../hooks/useLoveComments';
 import { useLoveRecords } from '../hooks/useLoveRecords';
 import { CURRENT_AUTHOR_NAME } from '../mockAuth';
@@ -20,10 +21,12 @@ function formatRecordedAt(iso: string): string {
 
 export function LoveRecordDetailModalController() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const recordId = searchParams.get('record');
   const { data: records } = useLoveRecords();
   const addComment = useAddLoveComment();
   const deleteComment = useDeleteLoveComment();
+  const deleteRecord = useDeleteLoveRecord();
 
   const activeRecord = records?.find((record) => record.id === recordId);
   if (!activeRecord) return null;
@@ -40,6 +43,8 @@ export function LoveRecordDetailModalController() {
       currentAuthorName={CURRENT_AUTHOR_NAME}
       onAddComment={(body) => addComment.mutate({ recordId: activeRecord.id, authorName: CURRENT_AUTHOR_NAME, body })}
       onDeleteComment={(commentId) => deleteComment.mutate({ recordId: activeRecord.id, commentId })}
+      onEdit={() => navigate(`/love/create?edit=${activeRecord.id}`)}
+      onDelete={() => deleteRecord.mutate(activeRecord.id, { onSuccess: () => setSearchParams({}) })}
     />
   );
 }

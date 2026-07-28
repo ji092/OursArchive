@@ -4,87 +4,122 @@
   gap: 16px;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-}
-
 .addButton {
   padding: 8px 14px;
   border-radius: 999px;
   border: none;
-  background: var(--color-text);
+  background: var(--color-accent);
   color: #fff;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
-.form {
+.addButton:hover {
+  background: var(--color-accent-hover);
+}
+
+/* 1행: 좌(달력) 1 · 우(리스트) 1 — 2열. 상세 패널이 열리면 다음 줄에 1열(전체 폭)로 이어진다. */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.calendarCol {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 16px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
-  background: var(--color-bg-soft);
 }
 
-.formRow {
+.calendarHead {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.input {
-  padding: 8px 12px;
+.calendarTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.calendarNav {
+  width: 26px;
+  height: 26px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
-  font-size: 13px;
-  font-family: inherit;
-  flex: 1;
-}
-
-.chipRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
   background: var(--color-surface);
-  font-size: 12px;
+  color: var(--color-text-muted);
   cursor: pointer;
+  font-size: 14px;
+}
+
+.weekdayRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekday {
+  text-align: center;
+  font-size: 11px;
   color: var(--color-text-muted);
 }
 
-.chipActive {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  border-color: var(--color-accent);
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
 }
 
-.submit {
-  padding: 10px;
+.dayCellEmpty {
+  aspect-ratio: 1;
+}
+
+.dayCell {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid transparent;
   border-radius: 8px;
-  border: none;
-  background: var(--color-accent);
-  color: #fff;
-  font-weight: 700;
+  background: none;
+  font-size: 12px;
+  color: var(--color-text);
   cursor: pointer;
 }
 
-.submit:hover {
-  background: var(--color-accent-hover);
+.dayCell:hover {
+  background: var(--color-bg-soft);
+}
+
+.dayCellHasEvent {
+  border-color: var(--color-accent);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.dayCellSelected {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.listCol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clearFilter {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .timeline {
@@ -96,8 +131,29 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 0;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.timelineItem:hover {
+  background: var(--color-bg-soft);
+}
+
+.timelineItemActive {
+  background: var(--color-accent-soft);
+}
+
+.timelineInfo {
+  flex: 1;
+  min-width: 0;
 }
 
 .badge {
@@ -106,7 +162,7 @@
   background: var(--color-accent-soft);
   color: var(--color-accent);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -118,7 +174,7 @@
 .itemTitle {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .itemMeta {
@@ -129,5 +185,134 @@
 
 .empty {
   font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* 다음 줄: 1열(전체 폭) 상세보기 패널 */
+.detailRow {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-soft);
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.detailTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.detailClose {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.detailMeta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.detailLink {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.detailLink:hover {
+  text-decoration: underline;
+}
+
+.detailSection {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.detailSectionTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.budgetGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.budgetCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.budgetLabel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.budgetValue {
+  font-size: 13px;
+  font-family: var(--font-numeric);
+}
+
+.noteList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.noteCard {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.noteCard:hover {
+  background: var(--color-accent-soft);
+}
+
+.noteVendor {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.noteType {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.noteMeta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.noteMemoList {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
   color: var(--color-text-muted);
 }

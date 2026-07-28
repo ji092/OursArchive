@@ -36,7 +36,11 @@ export function LoveFeedCard({ record }: { record: LoveRecord }) {
 
       <div className={styles.photoArea}>
         <button type="button" className={styles.photoButton} onClick={openDetail} aria-label="상세 보기">
-          <RecordThumbnail gradient={record.photos[photoIndex]?.gradient} alt={`${record.authorName}의 기록 사진`} />
+          <RecordThumbnail
+            gradient={record.photos[photoIndex]?.gradient}
+            imageUrl={record.photos[photoIndex]?.imageUrl}
+            alt={`${record.authorName}의 기록 사진`}
+          />
         </button>
         {hasMultiplePhotos && (
           <>

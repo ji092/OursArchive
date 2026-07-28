@@ -1,6 +1,13 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { NavLink } from 'react-router-dom';
 import styles from './GlobalHeader.module.css';
+
+// 실제 알림 연동 전까지 목데이터로 표시 (AppLayout.tsx TODO와 동일 원칙).
+const MOCK_NOTIFICATIONS = [
+  { id: 'n1', title: '엄마님이 댓글을 남겼어요', meta: '성장 일기 · 16주차 정밀 초음파', time: '10분 전' },
+  { id: 'n2', title: '검진 일정이 다가와요', meta: '20주 정기검진 · 8월 5일', time: '2시간 전' },
+  { id: 'n3', title: '경영님이 체크리스트를 완료했어요', meta: '스튜디오 촬영 컨셉 확정', time: '어제' },
+];
 
 // 챕터 라벨(함께/하나가/셋이)은 요구사항 문서의 연애/결혼/임신이 아니라 Readdy 프론트 목업에서
 // 확정된 실제 UI 문구를 그대로 따른다 (2026-07-22 목업 검토, DECISIONS.md 참조).
@@ -15,10 +22,17 @@ const CHAPTERS = [
 
 export interface GlobalHeaderProps {
   isMaster: boolean;
-  unreadCount: number;
 }
 
-export function GlobalHeader({ isMaster, unreadCount }: GlobalHeaderProps) {
+export function GlobalHeader({ isMaster }: GlobalHeaderProps) {
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const unreadCount = notifications.length;
+
+  function dismissNotification(id: string) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }
+
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
@@ -28,7 +42,7 @@ export function GlobalHeader({ isMaster, unreadCount }: GlobalHeaderProps) {
           </span>
           <span>
             <span className={styles.brandName}>Ours Archive</span>
-            <span className={styles.brandSub}>우리 둘의 기록</span>
+            <span className={styles.brandSub}>우리 들의 기록</span>
           </span>
         </NavLink>
 
@@ -58,10 +72,48 @@ export function GlobalHeader({ isMaster, unreadCount }: GlobalHeaderProps) {
               <ShieldIcon />
             </NavLink>
           )}
-          <button type="button" className={styles.iconButton} aria-label="알림">
-            <BellIcon />
-            {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
-          </button>
+          <div className={styles.notifWrap}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label="알림"
+              onClick={() => setIsNotifOpen((v) => !v)}
+            >
+              <BellIcon />
+              {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
+            </button>
+            {isNotifOpen && (
+              <>
+                <button type="button" className={styles.notifBackdrop} aria-label="알림 닫기" onClick={() => setIsNotifOpen(false)} />
+                <div className={styles.notifPanel}>
+                  <p className={styles.notifHeader}>알림</p>
+                  {notifications.length === 0 ? (
+                    <p className={styles.notifEmpty}>새 알림이 없어요.</p>
+                  ) : (
+                    <ul className={styles.notifList}>
+                      {notifications.map((n) => (
+                        <li key={n.id} className={styles.notifItem}>
+                          <div className={styles.notifItemBody}>
+                            <p className={styles.notifTitle}>{n.title}</p>
+                            <p className={styles.notifMeta}>{n.meta}</p>
+                            <p className={styles.notifTime}>{n.time}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.notifDismiss}
+                            aria-label="알림 확인"
+                            onClick={() => dismissNotification(n.id)}
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
           <div className={styles.avatar} aria-hidden="true">
             <img src="/icons/user.png" alt="" width={18} height={18} />
           </div>

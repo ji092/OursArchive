@@ -15,6 +15,7 @@ create type guest_side as enum ('신랑측', '신부측');
 create type attending_status as enum ('yes', 'no', 'unknown');
 create type expense_status as enum ('planned', 'paid');
 create type attachment_link_type as enum ('budget', 'consult', 'etc');
+create type payment_method as enum ('card', 'cash');
 
 create table prep_item (
   id uuid primary key default gen_random_uuid(),
@@ -42,19 +43,32 @@ create table schedule_attr (
 
 create table budget_attr (
   prep_item_id uuid primary key references prep_item (id) on delete cascade,
-  planned_amount bigint not null default 0,
-  used_amount bigint not null default 0
+  planned_amount bigint not null default 0, -- 예산
+  deposit_amount bigint not null default 0, -- 계약금
+  deposit_method payment_method, -- 계약금 지출수단(카드/현금), null=미입력
+  deposit_memo text not null default '', -- 예: "현대카드", "계좌이체", "인출"
+  interim_amount bigint not null default 0, -- 중도금
+  interim_method payment_method,
+  interim_memo text not null default '',
+  balance_amount bigint not null default 0, -- 잔금
+  balance_method payment_method,
+  balance_memo text not null default '',
+  used_amount bigint not null default 0 -- 실지출비용 (계약금+중도금+잔금 합계와 별개로 실제 지출을 직접 입력받는다 — 항목 수정 화면 참조)
 );
 
 create table consult_note (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspace (id) on delete cascade,
   vendor_name text not null,
-  vendor_type text not null, -- 웨딩홀/스튜디오/플래너 등, 자유 텍스트(카테고리 고정 목록 아님 — 목업에서 자유 입력 확인)
+  vendor_type wedding_category not null, -- 자유 텍스트 → 체크리스트와 같은 카테고리 드롭다운으로 통일 (2026-07-24)
+  contact_phone text not null default '', -- 담당자 연락처
   visit_date date,
   status consult_note_status not null default 'scheduled',
   key_memos jsonb not null default '[]', -- 핵심 메모 배열
   questions jsonb not null default '[]', -- 물어볼 것 배열
+  address text not null default '', -- 업체 주소(장소검색으로 채움)
+  lat double precision,
+  lng double precision,
   created_at timestamptz not null default now()
 );
 
@@ -122,10 +136,22 @@ create table honeymoon (
 create table honeymoon_day (
   id uuid primary key default gen_random_uuid(),
   honeymoon_id uuid not null references honeymoon (id) on delete cascade,
-  day_number int not null,
+  day_number int not null, -- 표시 순서 겸 일차 번호 — 추가/삭제/순서변경 시 프론트에서 1..n으로 재계산해 저장한다
   title text not null,
-  detail text,
+  detail text, -- 메모
+  planned_amount bigint not null default 0, -- 예산
+  used_amount bigint not null default 0, -- 실제 지출
+  payment_method payment_method, -- 지출 방식(카드/현금), null=미입력
+  payment_memo text not null default '', -- 예: "현대카드", "계좌이체"
   unique (honeymoon_id, day_number)
+);
+
+-- 일차별 캡처/사진 — R2 오브젝트 키만 저장(love_photo와 동일 패턴, CLAUDE.md "이미지 바이너리 DB 저장 금지").
+create table honeymoon_day_photo (
+  id uuid primary key default gen_random_uuid(),
+  day_id uuid not null references honeymoon_day (id) on delete cascade,
+  url text not null,
+  sort_order int not null default 0
 );
 
 create table wedding_day_schedule (
@@ -147,4 +173,5 @@ create index on guest_entry (workspace_id);
 create index on vendor_contact (workspace_id);
 create index on attachment (workspace_id);
 create index on honeymoon_day (honeymoon_id);
+create index on honeymoon_day_photo (day_id);
 create index on wedding_day_schedule (workspace_id);

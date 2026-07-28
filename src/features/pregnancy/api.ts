@@ -1,10 +1,12 @@
-import { mockCheckups, mockDiaries, mockWeekContent } from './mockPregnancyData';
-import type { Checkup, PregnancyDiary } from './types';
+import { mockCheckups, mockDiaries, mockEvents, mockExpenses, mockWeekContent } from './mockPregnancyData';
+import type { Checkup, PregnancyDiary, PregnancyEvent, PregnancyExpense } from './types';
 
 // GET/POST /pregnancy/*(API 명세 6.5)가 아직 연결되지 않았다. localStorage를 임시 서버로 쓴다
 // (src/features/love/api.ts와 동일한 패턴).
 const DIARIES_KEY = 'ours-archive:pregnancy-diaries';
 const CHECKUPS_KEY = 'ours-archive:pregnancy-checkups';
+const EVENTS_KEY = 'ours-archive:pregnancy-events';
+const EXPENSES_KEY = 'ours-archive:pregnancy-expenses';
 
 function readJson<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key);
@@ -90,4 +92,50 @@ export async function fetchCheckups(): Promise<Checkup[]> {
 
 export async function fetchWeekContent(weekNo: number) {
   return mockWeekContent[weekNo] ?? null;
+}
+
+export async function fetchEvents(): Promise<PregnancyEvent[]> {
+  const events = readJson(EVENTS_KEY, mockEvents);
+  return [...events].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+}
+
+export interface CreateEventInput {
+  title: string;
+  eventType: PregnancyEvent['eventType'];
+  scheduledAt: string;
+  location: string;
+}
+
+export async function createEvent(input: CreateEventInput): Promise<PregnancyEvent> {
+  const event: PregnancyEvent = { id: crypto.randomUUID(), ...input };
+  const events = await fetchEvents();
+  writeJson(EVENTS_KEY, [event, ...events]);
+  return event;
+}
+
+export async function fetchExpenses(): Promise<PregnancyExpense[]> {
+  const expenses = readJson(EXPENSES_KEY, mockExpenses);
+  return [...expenses].sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+export interface CreateExpenseInput {
+  category: PregnancyExpense['category'];
+  amount: number;
+  date: string;
+  memo: string;
+}
+
+export async function createExpense(input: CreateExpenseInput): Promise<PregnancyExpense> {
+  const expense: PregnancyExpense = { id: crypto.randomUUID(), ...input };
+  const expenses = await fetchExpenses();
+  writeJson(EXPENSES_KEY, [expense, ...expenses]);
+  return expense;
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  const expenses = await fetchExpenses();
+  writeJson(
+    EXPENSES_KEY,
+    expenses.filter((e) => e.id !== id),
+  );
 }

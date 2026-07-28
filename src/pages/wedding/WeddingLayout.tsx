@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { WeddingActionsHostContext } from '@/features/wedding/actionsPortal';
 import { computeBudgetSummary, computeChecklistProgress, computeDday } from '@/features/wedding/deriveStats';
 import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddingData';
 import styles from './WeddingLayout.module.css';
@@ -16,10 +18,12 @@ const TABS = [
 export default function WeddingLayout() {
   const { data: weddingDate } = useWeddingDate();
   const { data: items } = usePrepItems();
+  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
 
   const dday = weddingDate ? computeDday(weddingDate) : null;
   const checklist = items ? computeChecklistProgress(items) : { done: 0, total: 0, percent: 0 };
   const budget = items ? computeBudgetSummary(items) : { percent: 0 };
+  const checklistRemaining = checklist.total - checklist.done;
 
   return (
     <main className={styles.page}>
@@ -30,7 +34,8 @@ export default function WeddingLayout() {
             우리가 <span className={styles.titleAccent}>하나가 되는 준비,</span>
           </h1>
           <p className={styles.subtitle}>
-            본식까지 {dday !== null ? `D${dday > 0 ? '-' : '+'}${Math.abs(dday)}` : '-'} · 투두 {checklist.done}/{checklist.total}
+            본식까지 {dday !== null ? `D${dday > 0 ? '-' : '+'}${Math.abs(dday)}` : '-'} · TO DO LIST{' '}
+            <span className={styles.subtitleRemaining}>{checklistRemaining}</span>/{checklist.total}
           </p>
         </div>
         <div className={styles.summaryCards}>
@@ -49,20 +54,25 @@ export default function WeddingLayout() {
         </div>
       </div>
 
-      <nav className={styles.tabs}>
-        {TABS.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.to === '/wedding'}
-            className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </nav>
+      <div className={styles.tabsRow}>
+        <nav className={styles.tabs}>
+          {TABS.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.to === '/wedding'}
+              className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className={styles.tabActionsRow} ref={setActionsHost} />
+      </div>
 
-      <Outlet />
+      <WeddingActionsHostContext.Provider value={actionsHost}>
+        <Outlet />
+      </WeddingActionsHostContext.Provider>
     </main>
   );
 }

@@ -1,12 +1,17 @@
 import { Link } from 'react-router-dom';
 import { LoveCalendarView } from '@/features/love/components/LoveCalendarView';
+import { useLoveRecords } from '@/features/love/hooks/useLoveRecords';
+import { useCheckups } from '@/features/pregnancy/hooks/usePregnancyData';
+import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
+import { computeChecklistProgress, computeDday } from '@/features/wedding/deriveStats';
+import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddingData';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
-import { dashboardMock } from './mockDashboard';
 import styles from './DashboardPage.module.css';
 
-// 목데이터 기준 구현(위 mockDashboard.ts 참조). GET /dashboard 연동 시 이 컴포넌트는 그대로 두고
-// 데이터 소스만 React Query 훅으로 교체한다. 단, 함께/셋이 카드의 D+/D-DAY와 "처음" 카드는
-// 관리 페이지에서 입력한 workspace 날짜(useWorkspaceSettings)로 실시간 파생 계산한다(2026-07-23).
+// 함께/셋이 카드의 D+/D-DAY와 "처음" 카드는 관리 페이지에서 입력한 workspace 날짜
+// (useWorkspaceSettings)로 실시간 파생 계산한다(2026-07-23). "요즘 우리" 카드도 실데이터
+// (연애 최신 기록/결혼 다음 일정/임신 다음 검진)를 그대로 보여주고, 없으면 빈 상태를 보여준다
+// (2026-07-28: mockDashboard.ts 하드코딩 문구 제거).
 function daysBetween(fromIso: string, now = new Date()): number {
   const from = new Date(fromIso);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -22,12 +27,39 @@ function formatShortDate(iso: string): string {
   return `${yy}/${mm}/${dd}`;
 }
 
+function formatDateTimeLabel(iso: string): string {
+  const date = new Date(iso);
+  const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+  const hours = date.getHours();
+  const ampm = hours < 12 ? '오전' : '오후';
+  const hour12 = String(hours % 12 === 0 ? 12 : hours % 12).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${date.getMonth() + 1}월 ${date.getDate()}일 (${weekday}) ${ampm} ${hour12}:${minutes}`;
+}
+
 export default function DashboardPage() {
-  const { summary, recent } = dashboardMock;
   const { data: settings } = useWorkspaceSettings();
-  const weddingProgress = Math.round((summary.weddingChecklistDone / summary.weddingChecklistTotal) * 100);
-  const daysTogether = settings ? daysBetween(settings.coupleStartDate) : summary.daysTogether;
+  const { data: weddingDate } = useWeddingDate();
+  const { data: prepItems } = usePrepItems();
+  const { data: loveRecords } = useLoveRecords();
+  const { data: checkups } = useCheckups();
+  const checklistProgress = computeChecklistProgress(prepItems ?? []);
+  const daysTogether = settings ? daysBetween(settings.coupleStartDate) : 0;
+  const weddingDday = weddingDate ? computeDday(weddingDate) : null;
   const birthDday = settings?.dueDate ? -daysBetween(settings.dueDate) : null;
+
+  const latestLoveRecord = [...(loveRecords ?? [])].sort(
+    (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
+  )[0];
+
+  const now = Date.now();
+  const nextWeddingEvent = (prepItems ?? [])
+    .filter((item) => item.schedule && new Date(item.schedule.scheduledAt).getTime() >= now)
+    .sort((a, b) => new Date(a.schedule!.scheduledAt).getTime() - new Date(b.schedule!.scheduledAt).getTime())[0];
+
+  const nextCheckup = (checkups ?? [])
+    .filter((c) => new Date(c.scheduledAt).getTime() >= now)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
 
   return (
     <main className={styles.page}>
@@ -62,7 +94,7 @@ export default function DashboardPage() {
             <Link to="/wedding" className={`${styles.summaryCard} ${styles.summaryCardWedding}`}>
               <span className={styles.summaryLabel}>하나가</span>
               <span className={styles.summaryValue}>
-                {summary.weddingChecklistDone}/{summary.weddingChecklistTotal}
+                {weddingDday !== null ? `D${weddingDday > 0 ? '-' : '+'}${Math.abs(weddingDday)}` : '-'}
               </span>
             </Link>
             <Link to="/pregnancy" className={`${styles.summaryCard} ${styles.summaryCardPregnancy}`}>
@@ -89,25 +121,46 @@ export default function DashboardPage() {
 
         <div className={styles.recentGrid}>
           <Link to="/love" className={styles.recentCard}>
-            <div className={styles.recentImage} aria-hidden="true" />
+            {latestLoveRecord?.photos[0] ? (
+              <RecordThumbnail
+                gradient={latestLoveRecord.photos[0].gradient}
+                imageUrl={latestLoveRecord.photos[0].imageUrl}
+                alt=""
+                className={styles.recentImage}
+              />
+            ) : (
+              <div className={styles.recentImage} aria-hidden="true" />
+            )}
             <div className={styles.recentBody}>
               <p className={styles.recentTag}>LOVE · 최신 기록</p>
-              <p className={styles.recentText}>{recent.love.body}</p>
-              <p className={styles.recentMeta}>📍 {recent.love.placeName}</p>
+              {latestLoveRecord ? (
+                <>
+                  <p className={styles.recentText}>{latestLoveRecord.body}</p>
+                  <p className={styles.recentMeta}>📍 {latestLoveRecord.placeName}</p>
+                </>
+              ) : (
+                <p className={styles.recentMeta}>아직 기록이 없어요.</p>
+              )}
             </div>
           </Link>
 
           <Link to="/wedding" className={styles.recentCard}>
             <div className={styles.recentBody}>
               <p className={styles.recentTag}>WEDDING · 다음 일정</p>
-              <p className={styles.recentText}>{recent.weddingNextEvent.title}</p>
-              <p className={styles.recentMeta}>{recent.weddingNextEvent.location}</p>
-              <p className={styles.recentMeta}>📅 {recent.weddingNextEvent.scheduledAtLabel}</p>
+              {nextWeddingEvent ? (
+                <>
+                  <p className={styles.recentText}>{nextWeddingEvent.title}</p>
+                  <p className={styles.recentMeta}>{nextWeddingEvent.schedule!.location}</p>
+                  <p className={styles.recentMeta}>📅 {formatDateTimeLabel(nextWeddingEvent.schedule!.scheduledAt)}</p>
+                </>
+              ) : (
+                <p className={styles.recentMeta}>예정된 일정이 없어요.</p>
+              )}
               <div className={styles.progressTrack}>
-                <div className={styles.progressFill} style={{ width: `${weddingProgress}%` }} />
+                <div className={styles.progressFill} style={{ width: `${checklistProgress.percent}%` }} />
               </div>
               <p className={styles.progressLabel}>
-                투두 진행 {recent.weddingNextEvent.checklistDone}/{recent.weddingNextEvent.checklistTotal}
+                투두 진행 {checklistProgress.done}/{checklistProgress.total}
               </p>
             </div>
           </Link>
@@ -115,14 +168,18 @@ export default function DashboardPage() {
           <Link to="/pregnancy" className={styles.recentCard}>
             <div className={styles.recentBody}>
               <p className={styles.recentTag}>PREGNANCY · 다음 검진</p>
-              <p className={styles.recentText}>{recent.pregnancyNextCheckup.title}</p>
-              <p className={styles.recentMeta}>
-                {recent.pregnancyNextCheckup.hospital} · {recent.pregnancyNextCheckup.doctor}
-              </p>
-              <p className={styles.recentMeta}>📅 {recent.pregnancyNextCheckup.scheduledAtLabel}</p>
-              <p className={styles.recentMeta}>
-                현재 {recent.pregnancyNextCheckup.weekNo}주 · {recent.pregnancyNextCheckup.sizeMetaphor} 크기
-              </p>
+              {nextCheckup ? (
+                <>
+                  <p className={styles.recentText}>{nextCheckup.title}</p>
+                  <p className={styles.recentMeta}>
+                    {nextCheckup.hospital} · {nextCheckup.doctor}
+                  </p>
+                  <p className={styles.recentMeta}>📅 {formatDateTimeLabel(nextCheckup.scheduledAt)}</p>
+                  <p className={styles.recentMeta}>현재 {nextCheckup.weekNo}주</p>
+                </>
+              ) : (
+                <p className={styles.recentMeta}>예정된 검진이 없어요.</p>
+              )}
             </div>
           </Link>
         </div>

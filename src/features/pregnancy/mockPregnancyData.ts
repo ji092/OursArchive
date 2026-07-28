@@ -1,4 +1,4 @@
-import type { Checkup, PregnancyDiary, WeekContent } from './types';
+import type { Checkup, PregnancyDiary, PregnancyEvent, PregnancyExpense, WeekContent } from './types';
 
 // Readdy 프론트 목업(2026-07-22 검토)에 나온 값을 그대로 반영한 초기 목데이터.
 // 출산 예정일(dueDate)은 관리 페이지에서 입력하는 workspace 설정으로 옮겨졌다
@@ -101,6 +101,42 @@ export const mockCheckups: Checkup[] = [
     scheduledAt: '2026-09-02T10:30:00+09:00',
     status: 'upcoming',
   },
+];
+
+export const mockEvents: PregnancyEvent[] = [
+  {
+    id: 'event-1',
+    title: '태교 요가 클래스',
+    eventType: '태교',
+    scheduledAt: '2026-08-08T11:00:00+09:00',
+    location: '분당 맘스요가',
+  },
+  {
+    id: 'event-2',
+    title: '유모차 매장 방문',
+    eventType: '쇼핑',
+    scheduledAt: '2026-08-15T14:00:00+09:00',
+    location: '판교 베이비페어',
+  },
+  {
+    id: 'event-3',
+    title: '시댁 상견례 겸 안부인사',
+    eventType: '모임',
+    scheduledAt: '2026-08-22T18:00:00+09:00',
+    location: '역삼 한정식집',
+  },
+];
+
+export const mockExpenses: PregnancyExpense[] = [
+  { id: 'expense-1', category: '병원·검진', amount: 85000, date: '2026-07-08', memo: '16주 정밀초음파' },
+  { id: 'expense-2', category: '보험', amount: 32000, date: '2026-07-05', memo: '태아보험 7월분' },
+  { id: 'expense-3', category: '출산준비물', amount: 420000, date: '2026-07-12', memo: '유모차' },
+  { id: 'expense-4', category: '아기옷·용품', amount: 68000, date: '2026-07-15', memo: '배냇저고리 세트' },
+  { id: 'expense-5', category: '산모용품', amount: 45000, date: '2026-07-18', memo: '입덧 완화 영양제' },
+  { id: 'expense-6', category: '병원·검진', amount: 42000, date: '2026-06-10', memo: '12주 정기검진' },
+  { id: 'expense-7', category: '보험', amount: 32000, date: '2026-06-05', memo: '태아보험 6월분' },
+  { id: 'expense-8', category: '출산준비물', amount: 180000, date: '2026-06-20', memo: '카시트' },
+  { id: 'expense-9', category: '기타', amount: 25000, date: '2026-06-25', memo: '태교 도서' },
 ];
 
 // 실제로는 40주치가 필요하지만(요구사항 5.4 week_content), 의학적 정확성이 필요한 콘텐츠라

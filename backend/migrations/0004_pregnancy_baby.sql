@@ -91,6 +91,37 @@ create table baby_photo (
   sort_order int not null default 0
 );
 
+-- 일정(Schedule) 탭 — 검진(checkup)과 별개의 일반 일정. 결혼(하나가) 챕터의 schedule_attr과
+-- 동일한 개념(2026-07-27, 일정 탭을 하나가 챕터와 동일 구조로 만들며 추가).
+create type pregnancy_event_type as enum ('태교', '모임', '쇼핑', '기타');
+
+create table pregnancy_event (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspace (id) on delete cascade,
+  title text not null,
+  event_type pregnancy_event_type not null,
+  scheduled_at timestamptz not null,
+  location text,
+  created_at timestamptz not null default now()
+);
+
+-- 지불(가계부) — 임신·출산·육아 지출. checkup/health_log와 동일하게 Master·파트너 전용
+-- (visibility 컬럼 없음, can_access_couple_content로만 판정 — 2026-07-27 사용자 지정).
+create type pregnancy_expense_category as enum (
+  '병원·검진', '보험', '산후조리원', '출산준비물', '기저귀·물티슈',
+  '분유·이유식', '아기옷·용품', '예방접종·약', '산모용품', '기타'
+);
+
+create table pregnancy_expense (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspace (id) on delete cascade,
+  category pregnancy_expense_category not null,
+  amount bigint not null,
+  expense_date date not null,
+  memo text not null default '',
+  created_at timestamptz not null default now()
+);
+
 create index on pregnancy_diary (workspace_id);
 create index on pregnancy_diary (recorded_at);
 create index on diary_photo (diary_id);
@@ -101,3 +132,7 @@ create index on prenatal_letter (workspace_id);
 create index on baby_record (workspace_id);
 create index on baby_record (recorded_at);
 create index on baby_photo (record_id);
+create index on pregnancy_event (workspace_id);
+create index on pregnancy_event (scheduled_at);
+create index on pregnancy_expense (workspace_id);
+create index on pregnancy_expense (expense_date);

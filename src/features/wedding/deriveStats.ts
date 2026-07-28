@@ -20,7 +20,22 @@ export function computeBudgetSummary(items: PrepItem[]) {
   const withBudget = items.filter((item) => item.budget);
   const planned = withBudget.reduce((sum, item) => sum + item.budget!.plannedAmount, 0);
   const used = withBudget.reduce((sum, item) => sum + item.budget!.usedAmount, 0);
-  return { planned, used, remaining: planned - used, percent: planned === 0 ? 0 : Math.round((used / planned) * 100) };
+  const committed = withBudget.reduce(
+    (sum, item) => sum + item.budget!.deposit.amount + item.budget!.interim.amount + item.budget!.balance.amount,
+    0,
+  );
+  const remaining = planned - used; // 지출나갈돈 — 예산에서 실지출비용을 뺀, 앞으로 더 나가야 할 돈
+  const usedPercent = planned === 0 ? 0 : Math.min(Math.round((used / planned) * 100), 100);
+  const remainingPercent = planned === 0 ? 0 : Math.min(Math.round((Math.max(remaining, 0) / planned) * 100), 100);
+  return {
+    planned,
+    used,
+    remaining,
+    committed, // 확정 총액 — 계약금+중도금+잔금으로 이미 확정된 금액의 합
+    percent: usedPercent,
+    usedPercent,
+    remainingPercent,
+  };
 }
 
 export function computeCategoryProgress(items: PrepItem[]): Partial<Record<WeddingCategory, { done: number; total: number }>> {

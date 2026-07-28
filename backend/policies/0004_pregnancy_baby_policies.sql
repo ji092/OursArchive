@@ -36,6 +36,8 @@ alter table health_log enable row level security;
 alter table prenatal_letter enable row level security;
 alter table baby_record enable row level security;
 alter table baby_photo enable row level security;
+alter table pregnancy_event enable row level security;
+alter table pregnancy_expense enable row level security;
 
 create policy pregnancy_diary_select on pregnancy_diary
   for select using (can_read_pregnancy_content(workspace_id, visibility));
@@ -65,6 +67,15 @@ create policy checkup_all on checkup
 create policy health_log_all on health_log
   for all using (can_access_couple_content(workspace_id));
 create policy prenatal_letter_all on prenatal_letter
+  for all using (can_access_couple_content(workspace_id));
+
+-- 일정(pregnancy_event): 검진 일정 등과 마찬가지로 가족 공유 없이 부부(+Master) 전용.
+create policy pregnancy_event_all on pregnancy_event
+  for all using (can_access_couple_content(workspace_id));
+
+-- 지불(pregnancy_expense): Master·파트너만 조회/작성 가능 — family/guest는 접근 불가
+-- (결혼 챕터의 wedding 카테고리 전체 접근 제한과 동일 원칙, 2026-07-27 사용자 지정).
+create policy pregnancy_expense_all on pregnancy_expense
   for all using (can_access_couple_content(workspace_id));
 
 create policy baby_record_select on baby_record

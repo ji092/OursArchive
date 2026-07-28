@@ -26,7 +26,7 @@
 .destination {
   margin: 0;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .editButton {
@@ -35,7 +35,7 @@
   cursor: pointer;
   font-size: 13px;
   color: var(--color-accent);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .dateRange {
@@ -73,7 +73,104 @@
 
 .dayRow {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
+}
+
+.dayBody {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dayPhotoCount {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.dayBudgetLabel {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: var(--font-numeric);
+}
+
+.dayProgressTrack {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-bg-soft);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.dayProgressFill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.dayActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dayActionButton {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.dayActionButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.daysFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.addDayButton {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.addDayButton:hover {
+  background: var(--color-accent-hover);
+}
+
+.editDaysButton {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.editDaysButton:hover {
+  background: var(--color-bg-soft);
 }
 
 .dayNumber {
@@ -93,7 +190,7 @@
 .dayTitle {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .dayDetail {
@@ -105,7 +202,7 @@
 .cardTitle {
   margin: 0 0 12px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .infoRow {
@@ -120,7 +217,7 @@
 }
 
 .infoValue {
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .progressTrack {

@@ -32,7 +32,7 @@ export interface CreateLoveRecordInput {
   lat?: number;
   lng?: number;
   recordedAt: string; // ISO 8601
-  photoCount: number; // 실제 파일은 아직 업로드하지 않으므로 개수만 반영해 표시용 그라디언트를 생성한다
+  photoDataUrls: string[]; // R2 업로드 전까지 임시로 base64 data URL을 그대로 저장한다 (CLAUDE.md 8단계 흐름은 R2 연동 시 도입)
 }
 
 const PHOTO_GRADIENTS = [
@@ -42,8 +42,14 @@ const PHOTO_GRADIENTS = [
   'linear-gradient(135deg, #d8c9ec, #f0e6f5)',
 ];
 
+function buildPhotos(dataUrls: string[]): LoveRecord['photos'] {
+  return dataUrls.slice(0, 10).map((imageUrl, i) => ({
+    gradient: PHOTO_GRADIENTS[i % PHOTO_GRADIENTS.length],
+    imageUrl,
+  }));
+}
+
 export async function createLoveRecord(input: CreateLoveRecordInput): Promise<LoveRecord> {
-  const photoCount = Math.min(Math.max(input.photoCount, 0), 10);
   const record: LoveRecord = {
     id: crypto.randomUUID(),
     authorName: input.authorName,
@@ -52,15 +58,48 @@ export async function createLoveRecord(input: CreateLoveRecordInput): Promise<Lo
     lng: input.lng,
     body: input.body,
     recordedAt: input.recordedAt,
-    photos: Array.from({ length: photoCount }, (_, i) => ({
-      gradient: PHOTO_GRADIENTS[i % PHOTO_GRADIENTS.length],
-    })),
+    photos: buildPhotos(input.photoDataUrls),
     comments: [],
   };
 
   const records = readStorage();
   writeStorage([record, ...records]);
   return record;
+}
+
+export interface UpdateLoveRecordInput {
+  id: string;
+  authorName: string;
+  body: string;
+  placeName: string;
+  lat?: number;
+  lng?: number;
+  recordedAt: string;
+  photoDataUrls: string[];
+}
+
+export async function updateLoveRecord(input: UpdateLoveRecordInput): Promise<void> {
+  const records = readStorage();
+  const updated = records.map((record) =>
+    record.id === input.id
+      ? {
+          ...record,
+          authorName: input.authorName,
+          body: input.body,
+          placeName: input.placeName,
+          lat: input.lat,
+          lng: input.lng,
+          recordedAt: input.recordedAt,
+          photos: buildPhotos(input.photoDataUrls),
+        }
+      : record,
+  );
+  writeStorage(updated);
+}
+
+export async function deleteLoveRecord(id: string): Promise<void> {
+  const records = readStorage();
+  writeStorage(records.filter((record) => record.id !== id));
 }
 
 export interface AddLoveCommentInput {

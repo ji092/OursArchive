@@ -1,0 +1,169 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 36px 28px;
+  box-shadow: 0 12px 32px rgba(20, 24, 28, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 320px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.logoMark {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.brandName {
+  font-family: var(--font-serif-brand);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--color-text);
+}
+
+.brandSub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.lead {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.providerList {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.providerButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.kakao {
+  background: #fee500;
+  border-color: #fee500;
+  color: #181600;
+}
+
+.google {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.footnote {
+  margin: 20px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.error {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.joinForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.joinTextarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg-soft);
+}
+
+.joinTextarea:focus {
+  outline: 2px solid var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.submitButton {
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submitButton:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.pendingMessage {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-bg-soft);
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.signOutLink {
+  margin-top: 20px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}

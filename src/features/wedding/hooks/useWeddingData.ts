@@ -9,6 +9,7 @@ import {
   fetchHoneymoon,
   fetchPrepItems,
   toggleChecklistDone,
+  updateConsultNote,
   updateHoneymoon,
   updatePrepItem,
 } from '../api';
@@ -83,6 +84,14 @@ export function useCreateConsultNote() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createConsultNote,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: consultNotesQueryKey }),
+  });
+}
+
+export function useUpdateConsultNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateConsultNote,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: consultNotesQueryKey }),
   });
 }

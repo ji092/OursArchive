@@ -23,6 +23,8 @@ export interface RecordDetailModalProps {
   currentAuthorName?: string;
   onAddComment?: (body: string) => void;
   onDeleteComment?: (commentId: string) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export function RecordDetailModal({
@@ -36,7 +38,10 @@ export function RecordDetailModal({
   currentAuthorName,
   onAddComment,
   onDeleteComment,
+  onEdit,
+  onDelete,
 }: RecordDetailModalProps) {
+  const canManage = authorName === currentAuthorName;
   const [photoIndex, setPhotoIndex] = useState(0);
   const [commentDraft, setCommentDraft] = useState('');
   const hasMultiplePhotos = photos.length > 1;
@@ -62,6 +67,21 @@ export function RecordDetailModal({
         <button type="button" className={styles.closeButton} onClick={onClose} aria-label="닫기">
           ✕
         </button>
+
+        {canManage && (onEdit || onDelete) && (
+          <div className={styles.manageActions}>
+            {onEdit && (
+              <button type="button" className={styles.manageButton} onClick={onEdit} aria-label="수정">
+                ✎ 수정
+              </button>
+            )}
+            {onDelete && (
+              <button type="button" className={styles.manageButton} onClick={onDelete} aria-label="삭제">
+                🗑 삭제
+              </button>
+            )}
+          </div>
+        )}
 
         {photos.length > 0 && (
           <div className={styles.photoArea}>

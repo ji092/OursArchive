@@ -14,14 +14,14 @@ export interface LoveRecord {
   lng?: number;
   body: string;
   recordedAt: string; // ISO 8601
-  photos: { gradient: string }[];
+  photos: { gradient: string; imageUrl?: string }[];
   comments: LoveRecordComment[];
 }
 
 export const mockLoveRecords: LoveRecord[] = [
   {
     id: 'love-1',
-    authorName: '지우',
+    authorName: '지영',
     placeName: '반포 한강공원',
     lat: 37.5106,
     lng: 126.9966,
@@ -32,25 +32,25 @@ export const mockLoveRecords: LoveRecord[] = [
       { gradient: 'linear-gradient(135deg, #f2b6a3, #ecd7c3)' },
     ],
     comments: [
-      { id: 'c1', authorName: '현우', body: '우리 또 가자 여기' },
-      { id: 'c2', authorName: '지우', body: 'ㅋㅋㅋ 좋지' },
-      { id: 'c3', authorName: '현우', body: '다음엔 자전거 타고!' },
+      { id: 'c1', authorName: '경영', body: '우리 또 가자 여기' },
+      { id: 'c2', authorName: '지영', body: 'ㅋㅋㅋ 좋지' },
+      { id: 'c3', authorName: '경영', body: '다음엔 자전거 타고!' },
     ],
   },
   {
     id: 'love-2',
-    authorName: '현우',
+    authorName: '경영',
     placeName: '성수동 카페거리',
     lat: 37.5445,
     lng: 127.0559,
     body: '우연히 들어간 카페인데 크루아상이 진짜 맛있었어. 다음에 또 오자.',
     recordedAt: '2026-07-05T13:00:00+09:00',
     photos: [{ gradient: 'linear-gradient(135deg, #efe3d6, #d9cfc2)' }],
-    comments: [{ id: 'c4', authorName: '지우', body: '나도 먹고싶다ㅠㅠ' }],
+    comments: [{ id: 'c4', authorName: '지영', body: '나도 먹고싶다ㅠㅠ' }],
   },
   {
     id: 'love-3',
-    authorName: '지우',
+    authorName: '지영',
     placeName: '함덕 해수욕장',
     lat: 33.5427,
     lng: 126.6699,
@@ -64,13 +64,13 @@ export const mockLoveRecords: LoveRecord[] = [
   },
   {
     id: 'love-4',
-    authorName: '현우',
+    authorName: '경영',
     placeName: '이태원 브런치집',
     lat: 37.5346,
     lng: 126.9947,
     body: '주말 브런치 데이트, 오랜만에 여유롭게 얘기 많이 했다.',
     recordedAt: '2026-06-08T11:30:00+09:00',
     photos: [{ gradient: 'linear-gradient(135deg, #f4d9c6, #f0e6d2)' }],
-    comments: [{ id: 'c5', authorName: '지우', body: '여기 또 가자!!' }],
+    comments: [{ id: 'c5', authorName: '지영', body: '여기 또 가자!!' }],
   },
 ];

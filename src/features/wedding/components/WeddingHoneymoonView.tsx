@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { computeCategoryBudget, formatWon } from '../deriveStats';
 import { useHoneymoon, usePrepItems, useUpdateHoneymoon } from '../hooks/useWeddingData';
+import type { HoneymoonDay } from '../types';
+import { HoneymoonDayDetailModal } from './HoneymoonDayDetailModal';
 import styles from './WeddingHoneymoonView.module.css';
+
+function renumber(days: HoneymoonDay[]): HoneymoonDay[] {
+  return days.map((day, index) => ({ ...day, dayNumber: index + 1 }));
+}
 
 export function WeddingHoneymoonView() {
   const { data: honeymoon } = useHoneymoon();
@@ -11,11 +17,14 @@ export function WeddingHoneymoonView() {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [openDayId, setOpenDayId] = useState<string | null>(null);
+  const [daysEditMode, setDaysEditMode] = useState(false);
 
   if (!honeymoon || !items) return <p>불러오는 중…</p>;
 
   const budget = computeCategoryBudget(items)['신혼여행'];
   const nights = Math.max(0, Math.round((new Date(honeymoon.endDate).getTime() - new Date(honeymoon.startDate).getTime()) / 86400000));
+  const openDay = openDayId ? honeymoon.days.find((d) => d.id === openDayId) : undefined;
 
   function startEdit() {
     setDestination(honeymoon!.destination);
@@ -26,6 +35,41 @@ export function WeddingHoneymoonView() {
 
   function saveEdit() {
     updateHoneymoon.mutate({ ...honeymoon!, destination, startDate, endDate }, { onSuccess: () => setEditing(false) });
+  }
+
+  function saveDays(days: HoneymoonDay[]) {
+    updateHoneymoon.mutate({ ...honeymoon!, days: renumber(days) });
+  }
+
+  function addDay() {
+    const newDay: HoneymoonDay = {
+      id: crypto.randomUUID(),
+      dayNumber: honeymoon!.days.length + 1,
+      title: `${honeymoon!.days.length + 1}일차`,
+      detail: '',
+      photos: [],
+      budget: { plannedAmount: 0, usedAmount: 0, method: null, memo: '' },
+    };
+    saveDays([...honeymoon!.days, newDay]);
+    setOpenDayId(newDay.id);
+  }
+
+  function removeDay(id: string) {
+    saveDays(honeymoon!.days.filter((day) => day.id !== id));
+  }
+
+  function moveDay(id: string, direction: -1 | 1) {
+    const index = honeymoon!.days.findIndex((day) => day.id === id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= honeymoon!.days.length) return;
+    const next = [...honeymoon!.days];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    saveDays(next);
+  }
+
+  function saveDayDetail(id: string, patch: Omit<HoneymoonDay, 'id' | 'dayNumber'>) {
+    saveDays(honeymoon!.days.map((day) => (day.id === id ? { ...day, ...patch } : day)));
+    setOpenDayId(null);
   }
 
   return (
@@ -55,15 +99,62 @@ export function WeddingHoneymoonView() {
         )}
 
         <div className={styles.days}>
-          {honeymoon.days.map((day) => (
-            <div key={day.dayNumber} className={styles.dayRow}>
+          {honeymoon.days.map((day, index) => (
+            <div key={day.id} className={styles.dayRow}>
               <span className={styles.dayNumber}>{day.dayNumber}</span>
-              <div>
+              <button type="button" className={styles.dayBody} onClick={() => setOpenDayId(day.id)}>
                 <p className={styles.dayTitle}>{day.title}</p>
-                <p className={styles.dayDetail}>{day.detail}</p>
-              </div>
+                <p className={styles.dayDetail}>{day.detail || '메모 없음'}</p>
+                {day.photos.length > 0 && <p className={styles.dayPhotoCount}>사진 {day.photos.length}장</p>}
+                {day.budget.plannedAmount > 0 && (
+                  <>
+                    <p className={styles.dayBudgetLabel}>
+                      {formatWon(day.budget.usedAmount)} / {formatWon(day.budget.plannedAmount)}
+                    </p>
+                    <div className={styles.dayProgressTrack}>
+                      <div
+                        className={styles.dayProgressFill}
+                        style={{ width: `${Math.min(Math.round((day.budget.usedAmount / day.budget.plannedAmount) * 100), 100)}%` }}
+                      />
+                    </div>
+                  </>
+                )}
+              </button>
+              {daysEditMode && (
+                <div className={styles.dayActions}>
+                  <button
+                    type="button"
+                    className={styles.dayActionButton}
+                    onClick={() => moveDay(day.id, -1)}
+                    disabled={index === 0}
+                    aria-label="위로 이동"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.dayActionButton}
+                    onClick={() => moveDay(day.id, 1)}
+                    disabled={index === honeymoon.days.length - 1}
+                    aria-label="아래로 이동"
+                  >
+                    ↓
+                  </button>
+                  <button type="button" className={styles.dayActionButton} onClick={() => removeDay(day.id)} aria-label="삭제">
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           ))}
+        </div>
+        <div className={styles.daysFooter}>
+          <button type="button" className={styles.addDayButton} onClick={addDay}>
+            + 일정 추가
+          </button>
+          <button type="button" className={styles.editDaysButton} onClick={() => setDaysEditMode((v) => !v)}>
+            {daysEditMode ? '완료' : '순서·삭제 편집'}
+          </button>
         </div>
       </section>
 
@@ -100,17 +191,27 @@ export function WeddingHoneymoonView() {
               <span className={styles.infoValue}>{formatWon(budget.planned)}</span>
             </div>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>사용</span>
+              <span className={styles.infoLabel}>실지출</span>
               <span className={styles.infoValue}>{formatWon(budget.used)}</span>
             </div>
+            <div className={styles.progressTrack}>
+              <div
+                className={styles.progressFill}
+                style={{
+                  width: `${budget.planned === 0 ? 0 : Math.min(Math.round((budget.used / budget.planned) * 100), 100)}%`,
+                }}
+              />
+            </div>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>잔여</span>
+              <span className={styles.infoLabel}>지출나갈돈</span>
               <span className={styles.infoValue}>{formatWon(budget.planned - budget.used)}</span>
             </div>
             <div className={styles.progressTrack}>
               <div
                 className={styles.progressFill}
-                style={{ width: `${budget.planned === 0 ? 0 : Math.min(Math.round((budget.used / budget.planned) * 100), 100)}%` }}
+                style={{
+                  width: `${budget.planned === 0 ? 0 : Math.min(Math.round((Math.max(budget.planned - budget.used, 0) / budget.planned) * 100), 100)}%`,
+                }}
               />
             </div>
           </>
@@ -119,6 +220,14 @@ export function WeddingHoneymoonView() {
         )}
         <p className={styles.editHint}>예산 탭에서 수정하기 →</p>
       </section>
+
+      {openDay && (
+        <HoneymoonDayDetailModal
+          day={openDay}
+          onClose={() => setOpenDayId(null)}
+          onSave={(patch) => saveDayDetail(openDay.id, patch)}
+        />
+      )}
     </div>
   );
 }

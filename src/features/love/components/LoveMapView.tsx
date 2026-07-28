@@ -67,7 +67,12 @@ export function LoveMapView() {
         <div className={styles.placeCards}>
           {visibleRecords.map((record) => (
             <button key={record.id} type="button" className={styles.placeCard} onClick={() => setSearchParams({ record: record.id })}>
-              <RecordThumbnail gradient={record.photos[0]?.gradient} alt={`${record.placeName} 사진`} className={styles.placeThumb} />
+              <RecordThumbnail
+                gradient={record.photos[0]?.gradient}
+                imageUrl={record.photos[0]?.imageUrl}
+                alt={`${record.placeName} 사진`}
+                className={styles.placeThumb}
+              />
               <span className={styles.placeInfo}>
                 <span className={styles.placeBody}>{record.body}</span>
                 <span className={styles.placeName}>📍 {record.placeName}</span>

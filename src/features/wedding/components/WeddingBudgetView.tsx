@@ -41,17 +41,27 @@ export function WeddingBudgetView() {
           <span className={styles.summaryValue}>{formatWon(summary.planned)}</span>
         </div>
         <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>사용 합계</span>
+          <span className={styles.summaryLabel}>실지출비용</span>
           <span className={styles.summaryValue}>{formatWon(summary.used)}</span>
         </div>
+        <div className={styles.progressTrack}>
+          <div className={styles.progressFill} style={{ width: `${summary.usedPercent}%` }} />
+        </div>
+        <p className={styles.percentLabel}>예산의 {summary.usedPercent}%</p>
+
         <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>남은 예산</span>
+          <span className={styles.summaryLabel}>지출나갈돈</span>
           <span className={styles.summaryValue}>{formatWon(summary.remaining)}</span>
         </div>
         <div className={styles.progressTrack}>
-          <div className={styles.progressFill} style={{ width: `${summary.percent}%` }} />
+          <div className={styles.progressFill} style={{ width: `${summary.remainingPercent}%` }} />
         </div>
-        <p className={styles.percentLabel}>현재 예산의 {summary.percent}% 사용 중</p>
+        <p className={styles.percentLabel}>예산의 {summary.remainingPercent}%</p>
+
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>확정 총액 (계약금+중도금+잔금)</span>
+          <span className={styles.summaryValue}>{formatWon(summary.committed)}</span>
+        </div>
       </section>
     </div>
   );
