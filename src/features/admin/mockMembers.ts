@@ -1,10 +1,6 @@
 import type { Member } from './types';
 
-// Readdy 프론트 목업(2026-07-22 검토)에 나온 구성원 그대로.
-export const mockMembers: Member[] = [
-  { id: 'member-1', name: '지영', email: 'jiyoung@oursarchive.love', relationLabel: '본인 (Master)', role: 'master', status: 'active' },
-  { id: 'member-2', name: '경영', email: 'kyungyoung@oursarchive.love', relationLabel: '남자친구', role: 'partner', status: 'active' },
-  { id: 'member-3', name: '엄마', email: 'mom@oursarchive.love', relationLabel: '친정 어머니', role: 'family', status: 'active' },
-  { id: 'member-4', name: '시어머니', email: 'mother@oursarchive.love', relationLabel: '시어머니', role: 'family', status: 'active' },
-  { id: 'member-5', name: '언니', email: 'sister@oursarchive.love', relationLabel: '친언니', role: 'family', status: 'invited' },
-];
+// localStorage가 비어있을 때(신규 브라우저/배포 도메인)의 최초 fallback — 실사용 데이터가 아니므로 빈 상태로 둔다
+// (2026-07-28: 배포 도메인에서 옛 목데이터가 그대로 노출되던 문제를 계기로 전부 비움).
+// 실제 구성원 승인은 OAuth 자가가입 + Master 승인 플로우(joinRequestsApi.ts)로 이뤄진다.
+export const mockMembers: Member[] = [];

@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { AppLayout } from '@/app/AppLayout';
 import { ErrorPage } from '@/app/ErrorPage';
+import { RequireActiveMember } from '@/app/RequireActiveMember';
+import { RequireMaster } from '@/app/RequireMaster';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import LoveLayout from '@/pages/love/LoveLayout';
 import LoveFeedPage from '@/pages/love/feed/LoveFeedPage';
@@ -30,7 +31,7 @@ import LoginPage from '@/pages/auth/LoginPage';
 // 인증 페이지(초대 수락/재설정)는 GlobalHeader가 필요 없으므로 AppLayout 밖에 둔다.
 export const router = createBrowserRouter([
   {
-    element: <AppLayout />,
+    element: <RequireActiveMember />,
     errorElement: <ErrorPage />,
     children: [
       { path: '/', element: <DashboardPage /> },
@@ -68,7 +69,10 @@ export const router = createBrowserRouter([
         ],
       },
       { path: '/baby', element: <BabyPage /> },
-      { path: '/admin/members', element: <AdminPage /> },
+      {
+        element: <RequireMaster />,
+        children: [{ path: '/admin/members', element: <AdminPage /> }],
+      },
     ],
   },
   { path: '/login', element: <LoginPage /> },

@@ -1,143 +1,17 @@
 import type { Checkup, PregnancyDiary, PregnancyEvent, PregnancyExpense, WeekContent } from './types';
 
-// Readdy 프론트 목업(2026-07-22 검토)에 나온 값을 그대로 반영한 초기 목데이터.
+// localStorage가 비어있을 때(신규 브라우저/배포 도메인)의 최초 fallback — 실사용 데이터가 아니므로 빈 상태로 둔다
+// (2026-07-28: 배포 도메인에서 옛 목데이터가 그대로 노출되던 문제를 계기로 전부 비움).
 // 출산 예정일(dueDate)은 관리 페이지에서 입력하는 workspace 설정으로 옮겨졌다
 // (src/shared/lib/workspace/workspaceSettingsApi.ts, 2026-07-23).
 
-export const mockDiaries: PregnancyDiary[] = [
-  {
-    id: 'diary-1',
-    weekNo: 20,
-    title: '태동 처음 느낀 날',
-    body: '저녁 먹고 소파에 누워있는데 아랫배가 톡톡. 남편이 안 움직여서 아쉬워했다.',
-    isUltrasound: false,
-    recordedAt: '2026-07-30',
-    visibility: 'family',
-    gradient: 'linear-gradient(135deg, #d8c9ec, #f0e6f5)',
-    comments: [],
-  },
-  {
-    id: 'diary-2',
-    weekNo: 16,
-    title: '정밀 초음파',
-    body: '성별 확인은 안 했지만 팔다리랑 배 성장이 잘 되고 있대요. 진짜 사람 모양이 보여요!',
-    isUltrasound: true,
-    recordedAt: '2026-07-08',
-    visibility: 'family',
-    gradient: 'linear-gradient(135deg, #9fd4e0, #d7ecf0)',
-    comments: [{ id: 'pc-1', authorName: '엄마', body: '벌써 이렇게 컸구나 ㅠㅠ' }],
-  },
-  {
-    id: 'diary-3',
-    weekNo: 12,
-    title: '입덧이 줄었어요',
-    body: '드디어 입덧이 잦아들기 시작. 밥맛이 조금씩 돌아온다.',
-    isUltrasound: false,
-    recordedAt: '2026-06-11',
-    visibility: 'family',
-    gradient: 'linear-gradient(135deg, #f6c98d, #f19a8e)',
-    comments: [],
-  },
-  {
-    id: 'diary-4',
-    weekNo: 8,
-    title: '첫 초음파',
-    body: '아기집을 처음 확인한 날. 아직 작은 콩알만 하지만 심장 소리를 들었다.',
-    isUltrasound: true,
-    recordedAt: '2026-05-14',
-    visibility: 'family',
-    gradient: 'linear-gradient(135deg, #efe3d6, #d9cfc2)',
-    comments: [],
-  },
-];
+export const mockDiaries: PregnancyDiary[] = [];
 
-export const mockCheckups: Checkup[] = [
-  {
-    id: 'checkup-1',
-    weekNo: 6,
-    title: '6주 초기검진',
-    hospital: '미즈메디 병원',
-    doctor: '김소영',
-    scheduledAt: '2026-05-14T10:00:00+09:00',
-    status: 'done',
-    resultMemo: '아기집 확인, 심박 정상',
-  },
-  {
-    id: 'checkup-2',
-    weekNo: 12,
-    title: '12주 정기검진 + 1차 기형아 검사',
-    hospital: '미즈메디 병원',
-    doctor: '김소영',
-    scheduledAt: '2026-06-11T14:00:00+09:00',
-    status: 'done',
-    resultMemo: '기형아 검사 저위험군',
-  },
-  {
-    id: 'checkup-3',
-    weekNo: 16,
-    title: '16주 정밀초음파',
-    hospital: '미즈메디 병원',
-    doctor: '김소영',
-    scheduledAt: '2026-07-08T11:00:00+09:00',
-    status: 'done',
-    resultMemo: '팔다리·장기 발달 양호',
-  },
-  {
-    id: 'checkup-4',
-    weekNo: 20,
-    title: '20주 정기검진',
-    hospital: '미즈메디 병원',
-    doctor: '김소영',
-    scheduledAt: '2026-08-05T15:30:00+09:00',
-    status: 'upcoming',
-    note: '성별 확인 가능',
-  },
-  {
-    id: 'checkup-5',
-    weekNo: 24,
-    title: '24주 임신성 당뇨 검사',
-    hospital: '미즈메디 병원',
-    doctor: '김소영',
-    scheduledAt: '2026-09-02T10:30:00+09:00',
-    status: 'upcoming',
-  },
-];
+export const mockCheckups: Checkup[] = [];
 
-export const mockEvents: PregnancyEvent[] = [
-  {
-    id: 'event-1',
-    title: '태교 요가 클래스',
-    eventType: '태교',
-    scheduledAt: '2026-08-08T11:00:00+09:00',
-    location: '분당 맘스요가',
-  },
-  {
-    id: 'event-2',
-    title: '유모차 매장 방문',
-    eventType: '쇼핑',
-    scheduledAt: '2026-08-15T14:00:00+09:00',
-    location: '판교 베이비페어',
-  },
-  {
-    id: 'event-3',
-    title: '시댁 상견례 겸 안부인사',
-    eventType: '모임',
-    scheduledAt: '2026-08-22T18:00:00+09:00',
-    location: '역삼 한정식집',
-  },
-];
+export const mockEvents: PregnancyEvent[] = [];
 
-export const mockExpenses: PregnancyExpense[] = [
-  { id: 'expense-1', category: '병원·검진', amount: 85000, date: '2026-07-08', memo: '16주 정밀초음파' },
-  { id: 'expense-2', category: '보험', amount: 32000, date: '2026-07-05', memo: '태아보험 7월분' },
-  { id: 'expense-3', category: '출산준비물', amount: 420000, date: '2026-07-12', memo: '유모차' },
-  { id: 'expense-4', category: '아기옷·용품', amount: 68000, date: '2026-07-15', memo: '배냇저고리 세트' },
-  { id: 'expense-5', category: '산모용품', amount: 45000, date: '2026-07-18', memo: '입덧 완화 영양제' },
-  { id: 'expense-6', category: '병원·검진', amount: 42000, date: '2026-06-10', memo: '12주 정기검진' },
-  { id: 'expense-7', category: '보험', amount: 32000, date: '2026-06-05', memo: '태아보험 6월분' },
-  { id: 'expense-8', category: '출산준비물', amount: 180000, date: '2026-06-20', memo: '카시트' },
-  { id: 'expense-9', category: '기타', amount: 25000, date: '2026-06-25', memo: '태교 도서' },
-];
+export const mockExpenses: PregnancyExpense[] = [];
 
 // 실제로는 40주치가 필요하지만(요구사항 5.4 week_content), 의학적 정확성이 필요한 콘텐츠라
 // DECISIONS.md 2026-07-22 결정대로 지금은 스키마/화면만 만들고 실데이터는 채우지 않는다.
