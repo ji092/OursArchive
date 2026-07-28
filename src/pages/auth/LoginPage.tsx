@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { signInWithGoogle, signInWithKakao, signOut, submitJoinRequest } from '@/shared/lib/auth/authApi';
+import { signInWithKakao, signOut, submitJoinRequest } from '@/shared/lib/auth/authApi';
 import { myMembershipQueryKey, useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import styles from './LoginPage.module.css';
 
-// OAuth(카카오/구글) 자가가입 + Master 승인 플로우의 로그인 화면.
+// OAuth(카카오) 자가가입 + Master 승인 플로우의 로그인 화면 (구글 로그인은 미사용, 2026-07-28 사용자 지정).
 // 1) 미로그인: 소셜 로그인 버튼만 표시
 // 2) 로그인 O, membership 없음: "자기는 누구다" 소개 메시지 입력 후 가입 요청
 // 3) 가입 요청 O, status=pending/invited: 승인 대기 안내
@@ -74,28 +74,15 @@ function ProviderChoiceCard() {
     }
   }
 
-  async function handleGoogle() {
-    setError(null);
-    try {
-      await signInWithGoogle();
-    } catch {
-      setError('구글 로그인을 시작하지 못했어요. 잠시 후 다시 시도해주세요.');
-    }
-  }
-
   return (
     <div className={styles.card}>
       <Brand />
-      <p className={styles.lead}>소셜 계정으로 로그인하고, 우리 가족만의 기록을 시작해요.</p>
+      <p className={styles.lead}>카카오로 로그인하고, 우리 가족만의 기록을 시작해요.</p>
 
       <div className={styles.providerList}>
         <button type="button" className={`${styles.providerButton} ${styles.kakao}`} onClick={handleKakao}>
           <KakaoIcon />
           카카오로 시작하기
-        </button>
-        <button type="button" className={`${styles.providerButton} ${styles.google}`} onClick={handleGoogle}>
-          <GoogleIcon />
-          Google로 시작하기
         </button>
       </div>
 
@@ -170,29 +157,6 @@ function KakaoIcon() {
       <path
         fill="#181600"
         d="M12 3c-5.52 0-10 3.48-10 7.78 0 2.77 1.86 5.2 4.66 6.58-.2.75-.74 2.76-.85 3.19-.13.53.2.52.42.38.17-.11 2.7-1.83 3.8-2.58.63.09 1.28.14 1.97.14 5.52 0 10-3.48 10-7.71C22 6.48 17.52 3 12 3z"
-      />
-    </svg>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="#4285F4"
-        d="M21.6 12.23c0-.75-.07-1.47-.19-2.16H12v4.1h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.9-1.75 2.99-4.33 2.99-7.46z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.23-2.5c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.75-5.59-4.11H3.07v2.58A9.99 9.99 0 0 0 12 22z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M6.41 13.92a5.99 5.99 0 0 1 0-3.84V7.5H3.07a10 10 0 0 0 0 9l3.34-2.58z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 6.05c1.47 0 2.79.5 3.83 1.5l2.87-2.87C16.95 2.98 14.7 2 12 2A9.99 9.99 0 0 0 3.07 7.5l3.34 2.58c.79-2.36 2.99-4.03 5.59-4.03z"
       />
     </svg>
   );

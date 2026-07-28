@@ -89,11 +89,6 @@
   color: #181600;
 }
 
-.google {
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
 .footnote {
   margin: 20px 0 0;
   font-size: 12px;
