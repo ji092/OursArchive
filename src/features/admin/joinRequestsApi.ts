@@ -17,7 +17,7 @@ export interface JoinRequest {
 export async function fetchJoinRequests(): Promise<JoinRequest[]> {
   const { data, error } = await supabase
     .from('membership')
-    .select('id, user_id, join_message, created_at, profiles(name, avatar_url)')
+    .select('id, user_id, join_message, created_at, profiles!membership_user_id_fkey(name, avatar_url)')
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
   if (error) throw error;

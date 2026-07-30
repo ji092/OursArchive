@@ -11,7 +11,7 @@ export interface WorkspaceMember {
 async function fetchWorkspaceMembers(workspaceId: string): Promise<WorkspaceMember[]> {
   const { data, error } = await supabase
     .from('membership')
-    .select('user_id, status, profiles(nickname, name)')
+    .select('user_id, status, profiles!membership_user_id_fkey(nickname, name)')
     .eq('workspace_id', workspaceId)
     .eq('status', 'active');
   if (error) throw error;

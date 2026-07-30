@@ -8,7 +8,7 @@ import type { Member, MemberRole } from './types';
 export async function fetchMembers(): Promise<Member[]> {
   const { data: memberships, error } = await supabase
     .from('membership')
-    .select('id, role, status, relation_label, user_id, profiles(nickname, name)')
+    .select('id, role, status, relation_label, user_id, profiles!membership_user_id_fkey(nickname, name)')
     .eq('status', 'active')
     .order('created_at', { ascending: true });
   if (error) throw error;
