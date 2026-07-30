@@ -9,6 +9,7 @@ import LoveFeedPage from '@/pages/love/feed/LoveFeedPage';
 import LoveCalendarPage from '@/pages/love/calendar/LoveCalendarPage';
 import LoveMapPage from '@/pages/love/map/LoveMapPage';
 import LoveCreatePage from '@/pages/love/create/LoveCreatePage';
+import LovePlanCreatePage from '@/pages/love/plan-create/LovePlanCreatePage';
 import WeddingLayout from '@/pages/wedding/WeddingLayout';
 import WeddingSummaryPage from '@/pages/wedding/summary/WeddingSummaryPage';
 import WeddingChecklistPage from '@/pages/wedding/checklist/WeddingChecklistPage';
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
               { path: 'calendar', element: <LoveCalendarPage /> },
               { path: 'map', element: <LoveMapPage /> },
               { path: 'create', element: <LoveCreatePage /> },
+              { path: 'plan/create', element: <LovePlanCreatePage /> },
             ],
           },
           {

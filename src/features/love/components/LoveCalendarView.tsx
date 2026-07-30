@@ -12,6 +12,15 @@ function toDateKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
+function formatTime(iso: string): string {
+  const date = new Date(iso);
+  const hours = date.getHours();
+  const ampm = hours < 12 ? '오전' : '오후';
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${ampm} ${hour12}:${minutes}`;
+}
+
 export function LoveCalendarView() {
   const { session } = useSession();
   const { data: membership } = useMyMembership(session?.user.id);
@@ -61,6 +70,7 @@ export function LoveCalendarView() {
   }
 
   const selectedRecords = selectedDateKey ? (recordsByDate.get(selectedDateKey) ?? []) : [];
+  const selectedPlans = selectedDateKey ? (plansByDate.get(selectedDateKey) ?? []) : [];
 
   return (
     <div>
@@ -91,6 +101,7 @@ export function LoveCalendarView() {
           const dayRecords = recordsByDate.get(dateKey) ?? [];
           const dayPlans = plansByDate.get(dateKey) ?? [];
           const isSelected = dateKey === selectedDateKey;
+          const hasPlan = dayPlans.length > 0;
           return (
             <button
               key={dateKey}
@@ -98,18 +109,16 @@ export function LoveCalendarView() {
               className={isSelected ? `${styles.cell} ${styles.cellSelected}` : styles.cell}
               onClick={() => setSelectedDateKey(isSelected ? null : dateKey)}
             >
-              <span className={styles.cellDate}>{day}</span>
+              <span
+                className={hasPlan ? `${styles.cellDate} ${styles.cellDateHasPlan}` : styles.cellDate}
+                title={hasPlan ? dayPlans.map((plan) => plan.title).join(', ') : undefined}
+              >
+                {day}
+              </span>
               {dayRecords.length > 0 && (
                 <span className={styles.cellMarker}>
                   <img src="/icons/camera.png" alt="" width={10} height={10} />
                   {dayRecords.length > 1 && <span className={styles.cellMarkerCount}>{dayRecords.length}</span>}
-                </span>
-              )}
-              {dayPlans.length > 0 && (
-                <span className={styles.cellSchedule} title={dayPlans.map((plan) => plan.title).join(', ')}>
-                  {dayPlans.map((plan) => (
-                    <span key={plan.id} className={styles.cellScheduleDot} />
-                  ))}
                 </span>
               )}
             </button>
@@ -125,7 +134,25 @@ export function LoveCalendarView() {
               ✕
             </button>
           </div>
-          {selectedRecords.length === 0 && <p className={styles.dayPanelEmpty}>이 날의 기록이 없어요.</p>}
+          {selectedPlans.length > 0 && (
+            <div className={styles.dayPanelPlans}>
+              {selectedPlans.map((plan) => (
+                <div key={plan.id} className={styles.dayPanelPlanItem}>
+                  <span className={styles.dayPanelPlanDot} />
+                  <div>
+                    <p className={styles.dayPanelItemBody}>{plan.title}</p>
+                    <p className={styles.dayPanelItemPlace}>
+                      🕐 {formatTime(plan.plannedAtFull)}
+                      {plan.placeName ? ` · 📍 ${plan.placeName}` : ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {selectedRecords.length === 0 && selectedPlans.length === 0 && (
+            <p className={styles.dayPanelEmpty}>이 날의 기록이 없어요.</p>
+          )}
           {selectedRecords.map((record) => (
             <button
               key={record.id}

@@ -66,9 +66,22 @@
 
 .cellDate {
   position: absolute;
-  top: 6px;
-  left: 8px;
+  top: 4px;
+  left: 6px;
+  min-width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 8.5px;
+  border-radius: 999px;
+}
+
+/* 일정 있는 날: 시그니처 하늘색 동그라미로 표시 (2026-07-30 사용자 지정) */
+.cellDateHasPlan {
+  border: 1.5px solid var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 700;
 }
 
 .cellMarker {
@@ -90,22 +103,6 @@
 .cellMarkerCount {
   font-size: 13px;
   color: var(--color-text-muted);
-}
-
-/* 숫자·사진아이콘 줄 아래, 가운데 정렬. 일정이 여러 개면 세로로 쌓는다. */
-.cellSchedule {
-  margin-top: 28px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-}
-
-.cellScheduleDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--color-accent);
 }
 
 .dayPanel {
@@ -139,6 +136,30 @@
   font-size: 13px;
   color: var(--color-text-muted);
   margin: 0;
+}
+
+.dayPanelPlans {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dayPanelPlanItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dayPanelPlanDot {
+  margin-top: 5px;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-accent);
 }
 
 .dayPanelItem {

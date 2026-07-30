@@ -168,13 +168,35 @@ export async function deleteLoveComment(commentId: string): Promise<void> {
   if (error) throw error;
 }
 
-// love_plan(계획) 생성 UI는 아직 없다 — 달력의 일정 점 표시용 읽기 전용 연동만 우선 잇는다.
 export async function fetchLovePlans(workspaceId: string): Promise<LovePlan[]> {
   const { data, error } = await supabase
     .from('love_plan')
-    .select('id, title, planned_at')
+    .select('id, title, planned_at, place_name')
     .eq('workspace_id', workspaceId)
     .order('planned_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((p) => ({ id: p.id, title: p.title, plannedAt: p.planned_at.slice(0, 10) }));
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    title: p.title,
+    plannedAt: p.planned_at.slice(0, 10),
+    plannedAtFull: p.planned_at,
+    placeName: p.place_name ?? undefined,
+  }));
+}
+
+export interface CreateLovePlanInput {
+  workspaceId: string;
+  title: string;
+  placeName?: string;
+  plannedAt: string; // ISO 8601
+}
+
+export async function createLovePlan(input: CreateLovePlanInput): Promise<void> {
+  const { error } = await supabase.from('love_plan').insert({
+    workspace_id: input.workspaceId,
+    title: input.title,
+    place_name: input.placeName ?? null,
+    planned_at: input.plannedAt,
+  });
+  if (error) throw error;
 }

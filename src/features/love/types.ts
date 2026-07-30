@@ -29,4 +29,6 @@ export interface LovePlan {
   id: string;
   title: string;
   plannedAt: string; // ISO date (yyyy-mm-dd, LoveCalendarView가 이 형식으로 매칭)
+  plannedAtFull: string; // ISO 8601 (시간 포함, 상세 표시용)
+  placeName?: string;
 }

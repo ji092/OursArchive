@@ -39,10 +39,16 @@ export default function LoveLayout() {
             </NavLink>
           </div>
 
-          <NavLink to="/love/create" className={styles.newButton}>
-            <img src="/icons/write.png" alt="" width={14} height={14} />
-            새 기록
-          </NavLink>
+          <div className={styles.newButtonGroup}>
+            <NavLink to="/love/create" className={styles.newButton}>
+              <img src="/icons/write.png" alt="" width={14} height={14} />
+              우리 기록하기
+            </NavLink>
+            <NavLink to="/love/plan/create" className={styles.newButtonSecondary}>
+              <img src="/icons/write.png" alt="" width={14} height={14} />
+              일정 알려주기
+            </NavLink>
+          </div>
         </div>
       </div>
 

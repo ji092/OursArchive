@@ -75,9 +75,13 @@ export default function DashboardPage() {
 
         <div className={styles.heroRow}>
           <div className={styles.ctaGroup}>
-            <Link to="/love" className={styles.ctaPrimary}>
+            <Link to="/love/create" className={styles.ctaPrimary}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              오늘 기록하기
+              우리 기록하기
+            </Link>
+            <Link to="/love/plan/create" className={styles.ctaSecondary}>
+              <img src="/icons/write.png" alt="" width={14} height={14} />
+              일정 알려주기
             </Link>
             <Link to="/admin/members" className={styles.ctaSecondary}>
               <img src="/icons/admin.png" alt="" width={14} height={14} />
