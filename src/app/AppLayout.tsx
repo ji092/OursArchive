@@ -4,6 +4,8 @@ import { GlobalHeader } from '@/shared/components/layout/GlobalHeader';
 import { MobileTabBar } from '@/shared/components/layout/MobileTabBar';
 import { isMaster } from '@/shared/lib/rbac/permissions';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { useCaptureBlurOnHidden } from '@/shared/lib/capture-guard/useCaptureBlurOnHidden';
+import { useBlockCaptureShortcuts } from '@/shared/lib/capture-guard/useBlockCaptureShortcuts';
 import styles from './AppLayout.module.css';
 
 // 알림 목록/안읽음 개수는 features/notifications의 react-query 훅(폴링)이 관리한다 — GlobalHeader에
@@ -12,9 +14,11 @@ import styles from './AppLayout.module.css';
 export function AppLayout() {
   const { session } = useSession();
   const { data: membership } = useMyMembership(session?.user.id);
+  const isCaptureBlurred = useCaptureBlurOnHidden();
+  useBlockCaptureShortcuts();
 
   return (
-    <div className={styles.shell}>
+    <div className={isCaptureBlurred ? `${styles.shell} ${styles.captureBlurred}` : styles.shell}>
       <GlobalHeader isMaster={isMaster(membership?.role)} userId={session?.user.id} />
       <div className={styles.content}>
         <Outlet />

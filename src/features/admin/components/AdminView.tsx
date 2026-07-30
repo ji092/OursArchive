@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import type { WorkspaceSettings } from '@/shared/lib/workspace/workspaceSettingsApi';
 import { useApproveJoinRequest, useJoinRequests, useRejectJoinRequest } from '../hooks/useJoinRequests';
-import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '../hooks/useMembers';
+import { useMembers, useRemoveMember, useUpdateMemberRole } from '../hooks/useMembers';
 import type { JoinRequest } from '../joinRequestsApi';
 import { ROLE_LABELS, type MemberRole } from '../types';
 import styles from './AdminView.module.css';
@@ -25,17 +24,12 @@ const DATE_FIELDS: { key: keyof WorkspaceSettings; label: string; description: s
 ];
 
 export function AdminView() {
-  const workspaceId = useCurrentWorkspaceId();
   const { data: joinRequests } = useJoinRequests();
   const approveJoinRequest = useApproveJoinRequest();
   const rejectJoinRequest = useRejectJoinRequest();
   const { data: members } = useMembers();
   const updateRole = useUpdateMemberRole();
   const removeMember = useRemoveMember();
-  const inviteMember = useInviteMember();
-  const [showInvite, setShowInvite] = useState(false);
-  const [email, setEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<Exclude<MemberRole, 'master'>>('family');
 
   const { data: settings } = useWorkspaceSettings();
   const updateSettings = useUpdateWorkspaceSettings();
@@ -60,26 +54,13 @@ export function AdminView() {
     { master: 0, partner: 0, family: 0, guest: 0 },
   );
 
-  function handleInvite() {
-    if (!email.trim() || !workspaceId) return;
-    inviteMember.mutate(
-      { workspaceId, email: email.trim(), role: inviteRole },
-      {
-        onSuccess: () => {
-          setShowInvite(false);
-          setEmail('');
-        },
-      },
-    );
-  }
-
   return (
     <main className={styles.page}>
       <p className={styles.eyebrow}>ADMIN</p>
       <h1 className={styles.title}>
         관리 <span className={styles.titleAccent}>페이지</span>
       </h1>
-      <p className={styles.subtitle}>Master 페이지예요. 애인·가족·게스트를 초대하고 권한을 조정하세요.</p>
+      <p className={styles.subtitle}>Master 페이지예요. 가입 요청을 승인하고 애인·가족·게스트 권한을 조정하세요.</p>
 
       <div className={styles.dateSection}>
         <p className={styles.listTitle}>주요 날짜</p>
@@ -133,41 +114,17 @@ export function AdminView() {
 
       <div className={styles.listHead}>
         <p className={styles.listTitle}>구성원</p>
-        <button type="button" className={styles.inviteButton} onClick={() => setShowInvite((v) => !v)}>
-          👤+ 구성원 초대
-        </button>
       </div>
-
-      {showInvite && (
-        <div className={styles.inviteForm}>
-          <input className={styles.input} placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <select className={styles.select} value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Exclude<MemberRole, 'master'>)}>
-            <option value="partner">애인</option>
-            <option value="family">가족</option>
-            <option value="guest">게스트</option>
-          </select>
-          <button type="button" className={styles.submit} onClick={handleInvite}>
-            초대 보내기
-          </button>
-        </div>
-      )}
 
       <div className={styles.list}>
         {members.map((member) => (
           <div key={member.id} className={styles.row}>
             <span className={styles.avatar} aria-hidden="true" />
             <div className={styles.info}>
-              <p className={styles.name}>
-                {member.name}
-                {member.status === 'invited' && <span className={styles.pendingBadge}>초대 대기</span>}
-              </p>
-              <p className={styles.meta}>
-                {[member.relationLabel, member.email].filter(Boolean).join(' · ')}
-              </p>
+              <p className={styles.name}>{member.name}</p>
+              <p className={styles.meta}>{member.relationLabel}</p>
             </div>
-            {member.status === 'invited' ? (
-              <span className={styles.pendingBadge}>{ROLE_LABELS[member.role]} 초대중</span>
-            ) : member.role === 'master' ? (
+            {member.role === 'master' ? (
               <span className={styles.masterBadge}>Master</span>
             ) : (
               <select
@@ -180,7 +137,7 @@ export function AdminView() {
                 <option value="guest">게스트</option>
               </select>
             )}
-            {member.status !== 'invited' && member.role !== 'master' && (
+            {member.role !== 'master' && (
               <button type="button" className={styles.removeButton} onClick={() => removeMember.mutate(member.id)} aria-label="내보내기">
                 🗑
               </button>

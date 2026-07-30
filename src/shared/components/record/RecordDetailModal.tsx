@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { RecordThumbnail } from './RecordThumbnail';
+import { Watermark } from '@/shared/lib/capture-guard/Watermark';
+import { useSession } from '@/shared/hooks/useAuth';
 import styles from './RecordDetailModal.module.css';
 
 // 패턴 A(11.3) — 진입 경로(피드/달력/지도) 무관하게 recordId 하나로 동일 상세를 렌더링한다.
@@ -45,6 +47,11 @@ export function RecordDetailModal({
   const [photoIndex, setPhotoIndex] = useState(0);
   const [commentDraft, setCommentDraft] = useState('');
   const hasMultiplePhotos = photos.length > 1;
+  const { session } = useSession();
+  // 요구사항 11.2 — 유출 시 추적용 워터마크. 조회한 사람과 조회 시각을 남긴다(열람 시점 기준 고정,
+  // 세션은 앱 상위에서 이미 로드돼 있어 마운트 시점엔 보통 채워져 있다).
+  const [openedAt] = useState(() => new Date().toLocaleString('ko-KR'));
+  const watermarkLabel = `${session?.user.email ?? session?.user.id ?? ''} · ${openedAt}`;
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
@@ -90,6 +97,7 @@ export function RecordDetailModal({
               imageUrl={photos[photoIndex].imageUrl}
               alt={`${authorName}의 기록 사진`}
             />
+            {photos[photoIndex].imageUrl && <Watermark label={watermarkLabel} />}
             {hasMultiplePhotos && (
               <>
                 <button

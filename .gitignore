@@ -64,3 +64,4 @@ docs/
 .claude/
 CLAUDE.md
 *.claude.md
+mission.py

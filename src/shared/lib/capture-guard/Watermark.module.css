@@ -1,0 +1,22 @@
+.overlay {
+  position: absolute;
+  inset: -20%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  transform: rotate(-24deg);
+  z-index: 1;
+}
+
+.tile {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.22);
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+}

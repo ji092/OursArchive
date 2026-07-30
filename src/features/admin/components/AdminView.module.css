@@ -135,43 +135,6 @@
   font-weight: 700;
 }
 
-.inviteButton {
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: none;
-  background: var(--color-accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.inviteButton:hover {
-  background: var(--color-accent-hover);
-}
-
-.inviteForm {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: var(--color-bg-soft);
-  margin-bottom: 20px;
-}
-
-.input,
-.select {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  font-size: 13px;
-  font-family: inherit;
-  flex: 1;
-  min-width: 140px;
-}
-
 .submit {
   padding: 8px 16px;
   border-radius: 8px;
@@ -272,15 +235,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.pendingBadge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #fbeced;
-  color: #b3554f;
 }
 
 .meta {

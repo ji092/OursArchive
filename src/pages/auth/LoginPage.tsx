@@ -119,7 +119,7 @@ function JoinRequestCard({ userId }: { userId: string }) {
       >
         <textarea
           className={styles.joinTextarea}
-          placeholder="예) 지영이 이모예요 :)"
+          placeholder="본인을 소개하는 단어를 작성해 주세요"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={3}

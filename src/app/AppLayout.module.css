@@ -2,6 +2,13 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: filter 0.15s ease;
+}
+
+/* 요구사항 11.2 — 앱이 백그라운드로 전환되는 순간 OS 작업 전환 미리보기 등에 민감한 콘텐츠가
+   그대로 찍히지 않도록 화면 전체를 블러 처리한다 (억제 목적, 완전 차단 아님). */
+.captureBlurred {
+  filter: blur(24px);
 }
 
 .content {

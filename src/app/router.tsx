@@ -27,13 +27,12 @@ import PregnancyPaymentPage from '@/pages/pregnancy/payment/PregnancyPaymentPage
 import BabyPage from '@/pages/baby/BabyPage';
 import AdminPage from '@/pages/admin/AdminPage';
 import MyPagePage from '@/pages/mypage/MyPagePage';
-import InviteAcceptPage from '@/pages/auth/InviteAcceptPage';
-import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 import LoginPage from '@/pages/auth/LoginPage';
 
 // 레코드 상세 모달은 경로가 아니라 ?record=<id> 쿼리 파라미터로 연다 (PHASE5 2.1, CLAUDE.md) —
 // 그래서 /love, /pregnancy, /baby 각 페이지 내부에서 useSearchParams로 처리하고 별도 라우트를 만들지 않는다.
-// 인증 페이지(초대 수락/재설정)는 GlobalHeader가 필요 없으므로 AppLayout 밖에 둔다.
+// 가입은 카카오 OAuth 자가가입 + Master 승인뿐이다(이메일 초대/비밀번호 재설정 없음, 2026-07-30 확정) —
+// 그래서 /login 하나만 AppLayout 밖에 둔다.
 export const router = createBrowserRouter([
   {
     element: <RequireActiveMember />,
@@ -93,6 +92,4 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '/login', element: <LoginPage /> },
-  { path: '/auth/invite/:token', element: <InviteAcceptPage /> },
-  { path: '/auth/reset-password/:token', element: <ResetPasswordPage /> },
 ]);
