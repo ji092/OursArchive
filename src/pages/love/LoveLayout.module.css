@@ -50,8 +50,7 @@
   gap: 8px;
 }
 
-.newButton,
-.newButtonSecondary {
+.newButton {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -61,9 +60,6 @@
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
-}
-
-.newButton {
   background: var(--color-accent);
   color: #fff;
 }
@@ -74,16 +70,6 @@
 
 .newButton:hover {
   background: var(--color-accent-hover);
-}
-
-.newButtonSecondary {
-  background: var(--color-surface);
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
-}
-
-.newButtonSecondary:hover {
-  background: var(--color-accent-soft);
 }
 
 .tabs {

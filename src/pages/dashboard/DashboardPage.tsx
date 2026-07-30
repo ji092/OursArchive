@@ -7,6 +7,7 @@ import { computeChecklistProgress, computeDday } from '@/features/wedding/derive
 import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddingData';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
+import { isMaster } from '@/shared/lib/rbac/permissions';
 import styles from './DashboardPage.module.css';
 
 // 함께/셋이 카드의 D+/D-DAY와 "처음" 카드는 관리 페이지에서 입력한 workspace 날짜
@@ -77,16 +78,18 @@ export default function DashboardPage() {
           <div className={styles.ctaGroup}>
             <Link to="/love/create" className={styles.ctaPrimary}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              우리 기록하기
+              사진기록
             </Link>
-            <Link to="/love/plan/create" className={styles.ctaSecondary}>
+            <Link to="/love/plan/create" className={styles.ctaPrimary}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              일정 알려주기
+              일정기록
             </Link>
-            <Link to="/admin/members" className={styles.ctaSecondary}>
-              <img src="/icons/admin.png" alt="" width={14} height={14} />
-              관리
-            </Link>
+            {isMaster(membership?.role) && (
+              <Link to="/admin/members" className={styles.ctaSecondary}>
+                <img src="/icons/admin.png" alt="" width={14} height={14} />
+                관리
+              </Link>
+            )}
           </div>
 
           <div className={styles.summaryCards}>
