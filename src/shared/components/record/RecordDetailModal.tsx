@@ -17,7 +17,7 @@ export interface RecordDetailModalProps {
   placeName?: string;
   recordedAtLabel: string;
   body: string;
-  photos: { gradient: string }[];
+  photos: { gradient: string; imageUrl?: string }[];
   comments: RecordDetailModalComment[];
   onClose: () => void;
   currentAuthorName?: string;
@@ -85,7 +85,11 @@ export function RecordDetailModal({
 
         {photos.length > 0 && (
           <div className={styles.photoArea}>
-            <RecordThumbnail gradient={photos[photoIndex].gradient} alt={`${authorName}의 기록 사진`} />
+            <RecordThumbnail
+              gradient={photos[photoIndex].gradient}
+              imageUrl={photos[photoIndex].imageUrl}
+              alt={`${authorName}의 기록 사진`}
+            />
             {hasMultiplePhotos && (
               <>
                 <button
