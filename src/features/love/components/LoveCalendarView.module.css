@@ -68,7 +68,7 @@
   position: absolute;
   top: 6px;
   left: 8px;
-  font-size: 17px;
+  font-size: 8.5px;
 }
 
 .cellMarker {
@@ -82,8 +82,8 @@
 
 .cellMarker img {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
   object-fit: contain;
 }
 

@@ -101,7 +101,7 @@ export function LoveCalendarView() {
               <span className={styles.cellDate}>{day}</span>
               {dayRecords.length > 0 && (
                 <span className={styles.cellMarker}>
-                  <img src="/icons/camera.png" alt="" width={20} height={20} />
+                  <img src="/icons/camera.png" alt="" width={10} height={10} />
                   {dayRecords.length > 1 && <span className={styles.cellMarkerCount}>{dayRecords.length}</span>}
                 </span>
               )}
