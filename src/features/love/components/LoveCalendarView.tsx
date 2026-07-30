@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useLovePlans } from '../hooks/useLovePlans';
 import { useLoveRecords } from '../hooks/useLoveRecords';
 import { LoveRecordDetailModalController } from './LoveRecordDetailModalController';
@@ -12,8 +13,10 @@ function toDateKey(iso: string): string {
 }
 
 export function LoveCalendarView() {
-  const { data: records } = useLoveRecords();
-  const { data: plans } = useLovePlans();
+  const { session } = useSession();
+  const { data: membership } = useMyMembership(session?.user.id);
+  const { data: records } = useLoveRecords(membership?.workspaceId);
+  const { data: plans } = useLovePlans(membership?.workspaceId);
   const [, setSearchParams] = useSearchParams();
 
   const today = new Date();

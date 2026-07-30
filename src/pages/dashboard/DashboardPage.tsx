@@ -5,6 +5,7 @@ import { useCheckups } from '@/features/pregnancy/hooks/usePregnancyData';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
 import { computeChecklistProgress, computeDday } from '@/features/wedding/deriveStats';
 import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddingData';
+import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import styles from './DashboardPage.module.css';
 
@@ -38,13 +39,15 @@ function formatDateTimeLabel(iso: string): string {
 }
 
 export default function DashboardPage() {
+  const { session } = useSession();
+  const { data: membership } = useMyMembership(session?.user.id);
   const { data: settings } = useWorkspaceSettings();
   const { data: weddingDate } = useWeddingDate();
-  const { data: prepItems } = usePrepItems();
-  const { data: loveRecords } = useLoveRecords();
-  const { data: checkups } = useCheckups();
+  const { data: prepItems } = usePrepItems(membership?.workspaceId);
+  const { data: loveRecords } = useLoveRecords(membership?.workspaceId);
+  const { data: checkups } = useCheckups(membership?.workspaceId);
   const checklistProgress = computeChecklistProgress(prepItems ?? []);
-  const daysTogether = settings ? daysBetween(settings.coupleStartDate) : 0;
+  const daysTogether = settings?.coupleStartDate ? daysBetween(settings.coupleStartDate) : 0;
   const weddingDday = weddingDate ? computeDday(weddingDate) : null;
   const birthDday = settings?.dueDate ? -daysBetween(settings.dueDate) : null;
 
@@ -85,7 +88,7 @@ export default function DashboardPage() {
           <div className={styles.summaryCards}>
             <Link to="/admin/members" className={`${styles.summaryCard} ${styles.summaryCardStart}`}>
               <span className={styles.summaryLabel}>처음</span>
-              <span className={styles.summaryValue}>{settings ? formatShortDate(settings.firstMetDate) : '-'}</span>
+              <span className={styles.summaryValue}>{settings?.firstMetDate ? formatShortDate(settings.firstMetDate) : '-'}</span>
             </Link>
             <Link to="/love" className={`${styles.summaryCard} ${styles.summaryCardLove}`}>
               <span className={styles.summaryLabel}>함께</span>

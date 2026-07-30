@@ -2,9 +2,9 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
-import { photoCountToGradients } from '../api';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useCreateConsultNote, useConsultNotes, useUpdateConsultNote } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { ConsultNote, WeddingCategory } from '../types';
 import { WEDDING_CATEGORIES } from '../types';
 import styles from './WeddingConsultNotesView.module.css';
@@ -18,9 +18,10 @@ const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: st
 ];
 
 export function WeddingConsultNotesView() {
-  const { data: notes } = useConsultNotes();
-  const createNote = useCreateConsultNote();
-  const updateNote = useUpdateConsultNote();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: notes } = useConsultNotes(workspaceId);
+  const createNote = useCreateConsultNote(workspaceId);
+  const updateNote = useUpdateConsultNote(workspaceId);
   const actionsHost = useWeddingActionsHost();
   const [editingNote, setEditingNote] = useState<ConsultNote | 'new' | null>(null);
   const [vendorName, setVendorName] = useState('');
@@ -30,8 +31,9 @@ export function WeddingConsultNotesView() {
   const [status, setStatus] = useState<ConsultNote['status']>('scheduled');
   const [keyMemos, setKeyMemos] = useState('');
   const [questions, setQuestions] = useState('');
-  const [existingPhotoCount, setExistingPhotoCount] = useState(0);
-  const [newPhotos, setNewPhotos] = useState<{ previewUrl: string }[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<ConsultNote['photos']>([]);
+  const [removedPhotoPaths, setRemovedPhotoPaths] = useState<string[]>([]);
+  const [newPhotos, setNewPhotos] = useState<{ file: File; previewUrl: string }[]>([]);
   const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
   const [placeName, setPlaceName] = useState('');
   const [address, setAddress] = useState('');
@@ -75,7 +77,8 @@ export function WeddingConsultNotesView() {
     setStatus('scheduled');
     setKeyMemos('');
     setQuestions('');
-    setExistingPhotoCount(0);
+    setExistingPhotos([]);
+    setRemovedPhotoPaths([]);
     setNewPhotos([]);
     setPlaceName('');
     setAddress('');
@@ -91,7 +94,8 @@ export function WeddingConsultNotesView() {
     setStatus(note.status);
     setKeyMemos(note.keyMemos.join('\n'));
     setQuestions(note.questions.join('\n'));
-    setExistingPhotoCount(note.photos.length);
+    setExistingPhotos(note.photos);
+    setRemovedPhotoPaths([]);
     setNewPhotos([]);
     setPlaceName(note.vendorName);
     setAddress(note.address);
@@ -106,8 +110,8 @@ export function WeddingConsultNotesView() {
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
-    const room = MAX_PHOTOS - existingPhotoCount - newPhotos.length;
-    const accepted = files.slice(0, Math.max(0, room)).map((file) => ({ previewUrl: URL.createObjectURL(file) }));
+    const room = MAX_PHOTOS - existingPhotos.length - newPhotos.length;
+    const accepted = files.slice(0, Math.max(0, room)).map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
     setNewPhotos((prev) => [...prev, ...accepted]);
     event.target.value = '';
   }
@@ -119,13 +123,17 @@ export function WeddingConsultNotesView() {
     });
   }
 
-  function removeExistingPhoto() {
-    setExistingPhotoCount((prev) => Math.max(0, prev - 1));
+  function removeExistingPhoto(index: number) {
+    setExistingPhotos((prev) => {
+      const removed = prev[index];
+      if (removed) setRemovedPhotoPaths((paths) => [...paths, removed.path]);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function handleSubmit() {
-    if (!vendorName.trim()) return;
-    const payload = {
+    if (!vendorName.trim() || !workspaceId) return;
+    const fields = {
       vendorName: vendorName.trim(),
       vendorType,
       contactPhone: contactPhone.trim(),
@@ -136,14 +144,25 @@ export function WeddingConsultNotesView() {
       address,
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
-      photos: photoCountToGradients(existingPhotoCount + newPhotos.length),
     };
     if (editingNote === 'new') {
-      createNote.mutate(payload, { onSuccess: closeForm });
+      createNote.mutate(
+        { workspaceId, ...fields, photoFiles: newPhotos.map((p) => p.file) },
+        { onSuccess: closeForm },
+      );
       return;
     }
     if (editingNote) {
-      updateNote.mutate({ id: editingNote.id, patch: payload }, { onSuccess: closeForm });
+      updateNote.mutate(
+        {
+          id: editingNote.id,
+          workspaceId,
+          patch: fields,
+          removedPhotoPaths,
+          newPhotoFiles: newPhotos.map((p) => p.file),
+        },
+        { onSuccess: closeForm },
+      );
     }
   }
 
@@ -251,16 +270,16 @@ export function WeddingConsultNotesView() {
             <textarea className={styles.textarea} placeholder="물어볼 것 (줄바꿈으로 구분)" value={questions} onChange={(e) => setQuestions(e.target.value)} />
 
             <p className={styles.label}>
-              사진 <span className={styles.photoCount}>{existingPhotoCount + newPhotos.length}/{MAX_PHOTOS}</span>
+              사진 <span className={styles.photoCount}>{existingPhotos.length + newPhotos.length}/{MAX_PHOTOS}</span>
             </p>
             <div className={styles.photoGrid}>
-              {Array.from({ length: existingPhotoCount }).map((_, i) => (
+              {existingPhotos.map((photo, i) => (
                 <div
                   key={`existing-${i}`}
                   className={styles.photoThumb}
-                  style={{ background: editingNote !== 'new' ? editingNote.photos[i]?.gradient : undefined }}
+                  style={{ backgroundImage: photo.imageUrl ? `url(${photo.imageUrl})` : undefined, background: photo.imageUrl ? undefined : photo.gradient }}
                 >
-                  <button type="button" className={styles.photoRemove} onClick={removeExistingPhoto} aria-label="사진 삭제">
+                  <button type="button" className={styles.photoRemove} onClick={() => removeExistingPhoto(i)} aria-label="사진 삭제">
                     ✕
                   </button>
                 </div>
@@ -272,7 +291,7 @@ export function WeddingConsultNotesView() {
                   </button>
                 </div>
               ))}
-              {existingPhotoCount + newPhotos.length < MAX_PHOTOS && (
+              {existingPhotos.length + newPhotos.length < MAX_PHOTOS && (
                 <label className={styles.photoAdd}>
                   +
                   <input type="file" accept="image/*" multiple hidden onChange={handlePhotoChange} />

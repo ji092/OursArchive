@@ -33,3 +33,11 @@ export function useMyMembership(userId: string | undefined) {
     enabled: !!userId,
   });
 }
+
+// love/wedding/pregnancy 전 챕터가 "현재 워크스페이스 id"만 필요할 때 반복해서 session+membership을
+// 엮지 않도록 묶어둔 편의 훅. 필요한 컴포넌트는 이것만 부르면 된다.
+export function useCurrentWorkspaceId(): string | undefined {
+  const { session } = useSession();
+  const { data: membership } = useMyMembership(session?.user.id);
+  return membership?.workspaceId;
+}

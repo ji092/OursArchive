@@ -1,0 +1,79 @@
+.wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 24px;
+}
+
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: var(--color-accent-soft);
+}
+
+.avatarButton {
+  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+  margin-bottom: 6px;
+}
+
+.roleValue {
+  font-weight: 600;
+}
+
+.nicknameRow {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  font-size: 0.95rem;
+}
+
+.saveButton {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -6,6 +6,7 @@ import {
   formatWon,
 } from '../deriveStats';
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import styles from './WeddingSummaryView.module.css';
 
 function formatEventDate(iso: string): string {
@@ -14,8 +15,9 @@ function formatEventDate(iso: string): string {
 }
 
 export function WeddingSummaryView() {
-  const { data: items } = usePrepItems();
-  const { data: notes } = useConsultNotes();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: items } = usePrepItems(workspaceId);
+  const { data: notes } = useConsultNotes(workspaceId);
   if (!items || !notes) return <p>불러오는 중…</p>;
 
   const categoryProgress = computeCategoryProgress(items);

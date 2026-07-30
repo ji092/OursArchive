@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchLoveRecords } from '../api';
 
-export const loveRecordsQueryKey = ['love-records'] as const;
+export const loveRecordsQueryKey = (workspaceId: string) => ['love-records', workspaceId] as const;
 
-export function useLoveRecords() {
+export function useLoveRecords(workspaceId: string | undefined) {
   return useQuery({
-    queryKey: loveRecordsQueryKey,
-    queryFn: fetchLoveRecords,
+    queryKey: loveRecordsQueryKey(workspaceId ?? ''),
+    queryFn: () => fetchLoveRecords(workspaceId!),
+    enabled: !!workspaceId,
   });
 }

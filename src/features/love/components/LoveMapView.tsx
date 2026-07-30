@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
+import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useLoveRecords } from '../hooks/useLoveRecords';
 import { LoveRecordDetailModalController } from './LoveRecordDetailModalController';
 import styles from './LoveMapView.module.css';
@@ -9,7 +10,9 @@ import styles from './LoveMapView.module.css';
 // 요구사항 3.2.4 지도 뷰 — 카카오맵 JS SDK로 실제 지도에 핀을 찍는다(VITE_KAKAO_JS_KEY 필요).
 // 지역별 클러스터 리스트는 아직 장소명 키워드로 대략 묶는다 — 실제 행정구역 역지오코딩은 이후 연결.
 export function LoveMapView() {
-  const { data: records } = useLoveRecords();
+  const { session } = useSession();
+  const { data: membership } = useMyMembership(session?.user.id);
+  const { data: records } = useLoveRecords(membership?.workspaceId);
   const [, setSearchParams] = useSearchParams();
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 

@@ -1,18 +1,22 @@
 import { useState } from 'react';
 import { computeCategoryBudget, formatWon } from '../deriveStats';
 import { useHoneymoon, usePrepItems, useUpdateHoneymoon } from '../hooks/useWeddingData';
-import type { HoneymoonDay } from '../types';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import type { Honeymoon, HoneymoonDay } from '../types';
 import { HoneymoonDayDetailModal } from './HoneymoonDayDetailModal';
 import styles from './WeddingHoneymoonView.module.css';
+
+const EMPTY_HONEYMOON: Honeymoon = { destination: '', startDate: '', endDate: '', days: [] };
 
 function renumber(days: HoneymoonDay[]): HoneymoonDay[] {
   return days.map((day, index) => ({ ...day, dayNumber: index + 1 }));
 }
 
 export function WeddingHoneymoonView() {
-  const { data: honeymoon } = useHoneymoon();
-  const { data: items } = usePrepItems();
-  const updateHoneymoon = useUpdateHoneymoon();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: fetchedHoneymoon, isLoading } = useHoneymoon(workspaceId);
+  const { data: items } = usePrepItems(workspaceId);
+  const updateHoneymoon = useUpdateHoneymoon(workspaceId);
   const [editing, setEditing] = useState(false);
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -20,7 +24,8 @@ export function WeddingHoneymoonView() {
   const [openDayId, setOpenDayId] = useState<string | null>(null);
   const [daysEditMode, setDaysEditMode] = useState(false);
 
-  if (!honeymoon || !items) return <p>불러오는 중…</p>;
+  if (isLoading || !items) return <p>불러오는 중…</p>;
+  const honeymoon = fetchedHoneymoon ?? EMPTY_HONEYMOON;
 
   const budget = computeCategoryBudget(items)['신혼여행'];
   const nights = Math.max(0, Math.round((new Date(honeymoon.endDate).getTime() - new Date(honeymoon.startDate).getTime()) / 86400000));
@@ -67,7 +72,7 @@ export function WeddingHoneymoonView() {
     saveDays(next);
   }
 
-  function saveDayDetail(id: string, patch: Omit<HoneymoonDay, 'id' | 'dayNumber'>) {
+  function saveDayDetail(id: string, patch: Omit<HoneymoonDay, 'id' | 'dayNumber' | 'photos'>) {
     saveDays(honeymoon!.days.map((day) => (day.id === id ? { ...day, ...patch } : day)));
     setOpenDayId(null);
   }

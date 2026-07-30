@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ErrorPage } from '@/app/ErrorPage';
 import { RequireActiveMember } from '@/app/RequireActiveMember';
+import { RequireCoupleAccess } from '@/app/RequireCoupleAccess';
 import { RequireMaster } from '@/app/RequireMaster';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import LoveLayout from '@/pages/love/LoveLayout';
@@ -15,13 +16,17 @@ import WeddingSchedulePage from '@/pages/wedding/schedule/WeddingSchedulePage';
 import WeddingBudgetPage from '@/pages/wedding/budget/WeddingBudgetPage';
 import WeddingConsultNotesPage from '@/pages/wedding/consult-notes/WeddingConsultNotesPage';
 import WeddingHoneymoonPage from '@/pages/wedding/honeymoon/WeddingHoneymoonPage';
+import WeddingVendorContactsPage from '@/pages/wedding/vendor-contacts/WeddingVendorContactsPage';
+import WeddingExpensesPage from '@/pages/wedding/expenses/WeddingExpensesPage';
 import PregnancyLayout from '@/pages/pregnancy/PregnancyLayout';
 import PregnancySchedulePage from '@/pages/pregnancy/schedule/PregnancySchedulePage';
 import PregnancyAlbumPage from '@/pages/pregnancy/album/PregnancyAlbumPage';
 import PregnancyCheckupPage from '@/pages/pregnancy/checkup/PregnancyCheckupPage';
+import PregnancyHealthLogPage from '@/pages/pregnancy/health-log/PregnancyHealthLogPage';
 import PregnancyPaymentPage from '@/pages/pregnancy/payment/PregnancyPaymentPage';
 import BabyPage from '@/pages/baby/BabyPage';
 import AdminPage from '@/pages/admin/AdminPage';
+import MyPagePage from '@/pages/mypage/MyPagePage';
 import InviteAcceptPage from '@/pages/auth/InviteAcceptPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 import LoginPage from '@/pages/auth/LoginPage';
@@ -35,37 +40,49 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     children: [
       { path: '/', element: <DashboardPage /> },
+      { path: '/mypage', element: <MyPagePage /> },
       {
-        path: '/love',
-        element: <LoveLayout />,
+        // love/wedding/pregnancy는 master·partner 전용 (2026-07-29 사용자 지정) — family/guest는
+        // RequireCoupleAccess가 접근권한 팝업을 띄우고 홈으로 돌려보낸다. /baby는 의도적으로 밖에 둔다
+        // (아기 생기면 family에게도 열릴 챕터라 RequireActiveMember 통과만으로 접근 가능해야 함).
+        element: <RequireCoupleAccess />,
         children: [
-          { index: true, element: <LoveFeedPage /> },
-          { path: 'calendar', element: <LoveCalendarPage /> },
-          { path: 'map', element: <LoveMapPage /> },
-          { path: 'create', element: <LoveCreatePage /> },
-        ],
-      },
-      {
-        path: '/wedding',
-        element: <WeddingLayout />,
-        children: [
-          { index: true, element: <WeddingSummaryPage /> },
-          { path: 'checklist', element: <WeddingChecklistPage /> },
-          { path: 'schedule', element: <WeddingSchedulePage /> },
-          { path: 'budget', element: <WeddingBudgetPage /> },
-          { path: 'consult-notes', element: <WeddingConsultNotesPage /> },
-          { path: 'honeymoon', element: <WeddingHoneymoonPage /> },
-        ],
-      },
-      {
-        path: '/pregnancy',
-        element: <PregnancyLayout />,
-        children: [
-          { index: true, element: <Navigate to="schedule" replace /> },
-          { path: 'schedule', element: <PregnancySchedulePage /> },
-          { path: 'album', element: <PregnancyAlbumPage /> },
-          { path: 'checkup', element: <PregnancyCheckupPage /> },
-          { path: 'payment', element: <PregnancyPaymentPage /> },
+          {
+            path: '/love',
+            element: <LoveLayout />,
+            children: [
+              { index: true, element: <LoveFeedPage /> },
+              { path: 'calendar', element: <LoveCalendarPage /> },
+              { path: 'map', element: <LoveMapPage /> },
+              { path: 'create', element: <LoveCreatePage /> },
+            ],
+          },
+          {
+            path: '/wedding',
+            element: <WeddingLayout />,
+            children: [
+              { index: true, element: <WeddingSummaryPage /> },
+              { path: 'checklist', element: <WeddingChecklistPage /> },
+              { path: 'schedule', element: <WeddingSchedulePage /> },
+              { path: 'budget', element: <WeddingBudgetPage /> },
+              { path: 'consult-notes', element: <WeddingConsultNotesPage /> },
+              { path: 'honeymoon', element: <WeddingHoneymoonPage /> },
+              { path: 'vendor-contacts', element: <WeddingVendorContactsPage /> },
+              { path: 'expenses', element: <WeddingExpensesPage /> },
+            ],
+          },
+          {
+            path: '/pregnancy',
+            element: <PregnancyLayout />,
+            children: [
+              { index: true, element: <Navigate to="schedule" replace /> },
+              { path: 'schedule', element: <PregnancySchedulePage /> },
+              { path: 'album', element: <PregnancyAlbumPage /> },
+              { path: 'checkup', element: <PregnancyCheckupPage /> },
+              { path: 'health-log', element: <PregnancyHealthLogPage /> },
+              { path: 'payment', element: <PregnancyPaymentPage /> },
+            ],
+          },
         ],
       },
       { path: '/baby', element: <BabyPage /> },

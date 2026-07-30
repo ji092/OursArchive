@@ -9,6 +9,7 @@ const TABS = [
   { to: '/pregnancy/schedule', label: '일정' },
   { to: '/pregnancy/album', label: '앨범' },
   { to: '/pregnancy/checkup', label: '검진' },
+  { to: '/pregnancy/health-log', label: '건강기록' },
   { to: '/pregnancy/payment', label: '지불' },
 ];
 

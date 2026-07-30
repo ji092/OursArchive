@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
-import { useCreateEvent } from '../hooks/usePregnancyData';
-import type { PregnancyEventType } from '../types';
+import { useCreateEvent, useUpdateEvent } from '../hooks/usePregnancyData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import type { PregnancyEvent, PregnancyEventType } from '../types';
 import { EVENT_TYPES } from './PregnancyScheduleView';
 import styles from './PregnancyEventEditModal.module.css';
 
@@ -14,20 +15,23 @@ const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: st
 ];
 
 export interface PregnancyEventEditModalProps {
+  event?: PregnancyEvent;
   onClose: () => void;
 }
 
 // 일정 탭 "+ 일정 추가" 팝업 — 결혼(하나가) 챕터의 ScheduleEditModal과 동일 구조(장소검색+지도+주소
-// 표시), 체크리스트/상담노트 연결처럼 임신 챕터에 아직 없는 개념은 뺐다.
-export function PregnancyEventEditModal({ onClose }: PregnancyEventEditModalProps) {
-  const createEvent = useCreateEvent();
+// 표시), 체크리스트/상담노트 연결처럼 임신 챕터에 아직 없는 개념은 뺐다. event가 있으면 수정 모드.
+export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditModalProps) {
+  const workspaceId = useCurrentWorkspaceId();
+  const createEvent = useCreateEvent(workspaceId);
+  const updateEvent = useUpdateEvent(workspaceId);
 
-  const [title, setTitle] = useState('');
-  const [eventType, setEventType] = useState<PregnancyEventType>('태교');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState('10:00');
+  const [title, setTitle] = useState(event?.title ?? '');
+  const [eventType, setEventType] = useState<PregnancyEventType>(event?.eventType ?? '태교');
+  const [date, setDate] = useState(event ? event.scheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(event ? event.scheduledAt.slice(11, 16) : '10:00');
   const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState('');
+  const [placeName, setPlaceName] = useState(event?.location ?? '');
   const [placeAddress, setPlaceAddress] = useState('');
   const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
@@ -63,22 +67,24 @@ export function PregnancyEventEditModal({ onClose }: PregnancyEventEditModalProp
 
   function handleSubmit() {
     if (!title.trim() || !placeName.trim()) return;
-    createEvent.mutate(
-      {
-        title: title.trim(),
-        eventType,
-        scheduledAt: new Date(`${date}T${time}:00`).toISOString(),
-        location: placeName.trim(),
-      },
-      { onSuccess: onClose },
-    );
+    const input = {
+      title: title.trim(),
+      eventType,
+      scheduledAt: new Date(`${date}T${time}:00`).toISOString(),
+      location: placeName.trim(),
+    };
+    if (event) {
+      updateEvent.mutate({ id: event.id, input }, { onSuccess: onClose });
+    } else {
+      createEvent.mutate(input, { onSuccess: onClose });
+    }
   }
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
         <div className={styles.header}>
-          <p className={styles.headerTitle}>일정 추가</p>
+          <p className={styles.headerTitle}>{event ? '일정 수정' : '일정 추가'}</p>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="닫기">
             ✕
           </button>
@@ -159,7 +165,7 @@ export function PregnancyEventEditModal({ onClose }: PregnancyEventEditModalProp
         )}
 
         <button type="button" className={styles.submit} onClick={handleSubmit}>
-          추가하기
+          {event ? '저장하기' : '추가하기'}
         </button>
       </div>
     </div>

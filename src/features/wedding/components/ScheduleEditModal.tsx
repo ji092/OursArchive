@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useConsultNotes, useCreatePrepItem, usePrepItems, useUpdatePrepItem } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { WeddingEventType } from '../types';
 import { EVENT_TYPES, eventTypeLabel } from './WeddingScheduleView';
 import styles from './ScheduleEditModal.module.css';
@@ -20,10 +21,11 @@ export interface ScheduleEditModalProps {
 // 일정 탭 "+ 일정 추가" 팝업 — 체크리스트 항목과 연결(선택)/상담노트 다중 연결/장소 검색+지도+주소 표시를
 // 함께 처리한다. 다른 챕터에 재사용하지 않는다.
 export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
-  const { data: items } = usePrepItems();
-  const { data: consultNotes } = useConsultNotes();
-  const createItem = useCreatePrepItem();
-  const updateItem = useUpdatePrepItem();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: items } = usePrepItems(workspaceId);
+  const { data: consultNotes } = useConsultNotes(workspaceId);
+  const createItem = useCreatePrepItem(workspaceId);
+  const updateItem = useUpdatePrepItem(workspaceId);
 
   const linkableItems = (items ?? []).filter((item) => item.checklist && !item.schedule);
 
@@ -82,14 +84,14 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
   }
 
   function handleSubmit() {
-    if (!title.trim() || !placeName.trim()) return;
+    if (!title.trim() || !placeName.trim() || !workspaceId) return;
     const schedule = { scheduledAt: new Date(`${date}T${time}:00`).toISOString(), location: placeName.trim(), eventType };
     if (linkedItemId) {
       updateItem.mutate({ id: linkedItemId, patch: { schedule, consultNoteIds } }, { onSuccess: onClose });
       return;
     }
     createItem.mutate(
-      { title: title.trim(), category: '기타', assigneeName: null, schedule, consultNoteIds },
+      { workspaceId, title: title.trim(), category: '기타', assigneeId: null, schedule, consultNoteIds },
       { onSuccess: onClose },
     );
   }

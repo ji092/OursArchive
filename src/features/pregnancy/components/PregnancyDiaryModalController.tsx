@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import { RecordDetailModal } from '@/shared/components/record/RecordDetailModal';
-import { CURRENT_AUTHOR_NAME } from '@/features/love/mockAuth';
+import { useMyProfile } from '@/features/mypage/hooks/useProfile';
+import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import { useAddDiaryComment, useDeleteDiaryComment, useDiaries } from '../hooks/usePregnancyData';
 
 function formatRecordedAt(dateStr: string): string {
@@ -10,9 +11,14 @@ function formatRecordedAt(dateStr: string): string {
 export function PregnancyDiaryModalController() {
   const [searchParams, setSearchParams] = useSearchParams();
   const diaryId = searchParams.get('record');
-  const { data: diaries } = useDiaries();
-  const addComment = useAddDiaryComment();
-  const deleteComment = useDeleteDiaryComment();
+  const { session } = useSession();
+  const userId = session?.user.id;
+  const { data: profile } = useMyProfile(userId);
+  const currentAuthorName = profile?.nickname ?? '나';
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: diaries } = useDiaries(workspaceId);
+  const addComment = useAddDiaryComment(workspaceId);
+  const deleteComment = useDeleteDiaryComment(workspaceId);
 
   const diary = diaries?.find((d) => d.id === diaryId);
   if (!diary) return null;
@@ -25,9 +31,9 @@ export function PregnancyDiaryModalController() {
       photos={[{ gradient: diary.gradient }]}
       comments={diary.comments}
       onClose={() => setSearchParams({})}
-      currentAuthorName={CURRENT_AUTHOR_NAME}
-      onAddComment={(body) => addComment.mutate({ diaryId: diary.id, authorName: CURRENT_AUTHOR_NAME, body })}
-      onDeleteComment={(commentId) => deleteComment.mutate({ diaryId: diary.id, commentId })}
+      currentAuthorName={currentAuthorName}
+      onAddComment={(body) => userId && addComment.mutate({ diaryId: diary.id, authorId: userId, body })}
+      onDeleteComment={(commentId) => deleteComment.mutate(commentId)}
     />
   );
 }

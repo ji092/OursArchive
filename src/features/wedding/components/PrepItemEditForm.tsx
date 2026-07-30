@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useConsultNotes } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useWorkspaceMembers } from '@/shared/hooks/useWorkspaceMembers';
 import { WEDDING_CATEGORIES, type PaymentMethod, type PrepItem, type WeddingCategory } from '../types';
 import styles from './PrepItemEditForm.module.css';
 
@@ -7,13 +9,12 @@ import styles from './PrepItemEditForm.module.css';
 // Readdy 프론트 목업(2026-07-22 검토)에서 확인한 필드 구성 그대로: 제목/카테고리/마감날짜/담당/
 // 상담노트 연결(다대다)/예산(선택) — 체크리스트 탭 전용이라 일정(schedule) 필드는 여기 없다.
 export const CATEGORIES = WEDDING_CATEGORIES;
-const ASSIGNEES = ['지영', '경영'] as const;
 const PAYMENT_METHODS: PaymentMethod[] = ['카드', '현금'];
 
 export interface PrepItemEditFormValues {
   title: string;
   category: WeddingCategory;
-  assigneeName: string | null;
+  assigneeId: string | null;
   dueDate: string;
   consultNoteIds: string[];
   plannedAmount: string;
@@ -83,10 +84,12 @@ function PaymentField({ label, amount, onAmountChange, method, onMethodChange, m
 }
 
 export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormProps) {
-  const { data: consultNotes } = useConsultNotes();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: consultNotes } = useConsultNotes(workspaceId);
+  const { data: members } = useWorkspaceMembers(workspaceId);
   const [title, setTitle] = useState(item?.title ?? '');
   const [category, setCategory] = useState<WeddingCategory>(item?.category ?? CATEGORIES[0]);
-  const [assigneeName, setAssigneeName] = useState<string | null>(item?.assigneeName ?? null);
+  const [assigneeId, setAssigneeId] = useState<string | null>(item?.assigneeId ?? null);
   const [dueDate, setDueDate] = useState(item?.checklist?.dueDate ?? new Date().toISOString().slice(0, 10));
   const [consultNoteIds, setConsultNoteIds] = useState<string[]>(item?.consultNoteIds ?? []);
   const [plannedAmount, setPlannedAmount] = useState(item?.budget ? String(item.budget.plannedAmount) : '');
@@ -118,7 +121,7 @@ export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormPr
     onSubmit({
       title: title.trim(),
       category,
-      assigneeName,
+      assigneeId,
       dueDate,
       consultNoteIds,
       plannedAmount,
@@ -171,20 +174,20 @@ export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormPr
           <div className={styles.field}>
             <label className={styles.label}>담당</label>
             <div className={styles.chipRow}>
-              {ASSIGNEES.map((name) => (
+              {(members ?? []).map((member) => (
                 <button
-                  key={name}
+                  key={member.id}
                   type="button"
-                  className={name === assigneeName ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-                  onClick={() => setAssigneeName(name)}
+                  className={member.id === assigneeId ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                  onClick={() => setAssigneeId(member.id)}
                 >
-                  {name}
+                  {member.name}
                 </button>
               ))}
               <button
                 type="button"
-                className={assigneeName === null ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-                onClick={() => setAssigneeName(null)}
+                className={assigneeId === null ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                onClick={() => setAssigneeId(null)}
               >
                 함께
               </button>
@@ -277,7 +280,7 @@ export function toPrepItemPatch(values: PrepItemEditFormValues, item?: PrepItem)
   return {
     title: values.title,
     category: values.category,
-    assigneeName: values.assigneeName,
+    assigneeId: values.assigneeId,
     checklist: { done: item?.checklist?.done ?? false, dueDate: values.dueDate },
     consultNoteIds: values.consultNoteIds,
     budget: buildBudget(values),

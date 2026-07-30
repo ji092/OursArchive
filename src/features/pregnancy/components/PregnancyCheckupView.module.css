@@ -78,3 +78,123 @@
   font-size: 11px;
   color: var(--color-text-muted);
 }
+
+.checkupRow {
+  width: 100%;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+}
+
+.addButton {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 28, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.formHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.formTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.closeButton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.formRow {
+  display: flex;
+  gap: 10px;
+}
+
+.input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.chipRow {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.chipActive {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.submit {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.deleteButton {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: #d64545;
+  font-size: 13px;
+  cursor: pointer;
+}

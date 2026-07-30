@@ -17,7 +17,8 @@ export interface PrepItem {
   id: string;
   title: string;
   category: WeddingCategory;
-  assigneeName: string | null; // null = "함께" (backend assignee_id FK 설계, DECISIONS.md 2026-07-22 참조)
+  assigneeId: string | null; // profiles.id, null = "함께" (backend assignee_id FK 설계, DECISIONS.md 2026-07-22 참조)
+  assigneeName: string | null; // 표시용 — assigneeId로부터 조회 시점에 채운다
   checklist?: { done: boolean; dueDate: string };
   schedule?: { scheduledAt: string; location: string; eventType: WeddingEventType };
   budget?: {
@@ -30,10 +31,12 @@ export interface PrepItem {
   consultNoteIds: string[];
 }
 
-// 실제 파일은 R2 연동 전까지 업로드하지 않으므로 개수만 반영해 표시용 그라디언트를 생성한다
-// (love 피처와 동일 관례). 상담노트/신혼여행 일정 등 여러 곳에서 공용으로 쓴다.
+// content-photos 버킷 안 경로(path) + signed URL(imageUrl, 조회 시점에 resolveContentPhotoUrls로 채움) +
+// 로딩 전 임시 배경(gradient). 상담노트/신혼여행 일정 등 여러 곳에서 공용으로 쓴다.
 export interface PhotoPlaceholder {
+  path: string;
   gradient: string;
+  imageUrl?: string;
 }
 
 export interface ConsultNote {
@@ -71,4 +74,27 @@ export interface Honeymoon {
   startDate: string;
   endDate: string;
   days: HoneymoonDay[];
+}
+
+// 업체 연락처(vendor_contact, 0003_wedding.sql) — 상담노트와 별개로 "담당자·연락처·계약정보"만
+// 간단히 관리하는 명단. consultNoteId로 상담노트 1건과 선택적으로 연결.
+export interface VendorContact {
+  id: string;
+  vendorName: string;
+  managerName: string;
+  phone: string;
+  contractInfo: string;
+  consultNoteId: string | null;
+}
+
+export type ExpenseStatus = 'planned' | 'paid';
+
+// 지출(expense, 0003_wedding.sql) — budget_attr(항목별 예산)과 별개로, prep_item에 안 묶인
+// 단독 지출까지 자유롭게 기록하는 가계부. prepItemId는 선택(연결 안 해도 됨).
+export interface Expense {
+  id: string;
+  category: WeddingCategory;
+  amount: number;
+  status: ExpenseStatus;
+  prepItemId: string | null;
 }

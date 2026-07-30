@@ -1,20 +1,11 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
+import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useCreateLoveRecord, useUpdateLoveRecord } from '../hooks/useCreateLoveRecord';
 import { useLoveRecords } from '../hooks/useLoveRecords';
-import { CURRENT_AUTHOR_NAME, LOVE_AUTHORS } from '../mockAuth';
-import type { LoveRecord } from '../mockLoveRecords';
+import type { LoveRecord } from '../types';
 import styles from './LoveCreateForm.module.css';
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 const MAX_PHOTOS = 10;
 const MAX_BODY_LENGTH = 2000;
@@ -38,15 +29,18 @@ export function LoveCreateForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
-  const { data: records } = useLoveRecords();
+  const { session } = useSession();
+  const userId = session?.user.id;
+  const { data: membership } = useMyMembership(userId);
+  const workspaceId = membership?.workspaceId;
+  const { data: records } = useLoveRecords(workspaceId);
   const editingRecord = editId ? records?.find((record) => record.id === editId) : undefined;
   const isEditMode = !!editId;
 
-  const { mutate: createRecord, isPending: isCreating } = useCreateLoveRecord();
-  const { mutate: updateRecord, isPending: isUpdating } = useUpdateLoveRecord();
+  const { mutate: createRecord, isPending: isCreating } = useCreateLoveRecord(workspaceId);
+  const { mutate: updateRecord, isPending: isUpdating } = useUpdateLoveRecord(workspaceId);
   const isPending = isCreating || isUpdating;
 
-  const [authorName, setAuthorName] = useState<string>(CURRENT_AUTHOR_NAME);
   const [existingPhotos, setExistingPhotos] = useState<LoveRecord['photos']>([]);
   const [photos, setPhotos] = useState<{ file: File; previewUrl: string }[]>([]);
   const [body, setBody] = useState('');
@@ -63,7 +57,6 @@ export function LoveCreateForm() {
   // 수정 모드일 때 기존 기록 값으로 폼을 한 번만 채운다 (레코드 로딩 타이밍 때문에 useEffect로 처리).
   useEffect(() => {
     if (!editingRecord || hasPrefilled) return;
-    setAuthorName(editingRecord.authorName);
     setBody(editingRecord.body);
     const recordedDate = new Date(editingRecord.recordedAt);
     setDate(recordedDate.toISOString().slice(0, 10));
@@ -76,8 +69,14 @@ export function LoveCreateForm() {
     setHasPrefilled(true);
   }, [editingRecord, hasPrefilled]);
 
+  const [removedPhotoPaths, setRemovedPhotoPaths] = useState<string[]>([]);
+
   function removeExistingPhoto(index: number) {
-    setExistingPhotos((prev) => prev.filter((_, i) => i !== index));
+    setExistingPhotos((prev) => {
+      const removed = prev[index];
+      if (removed) setRemovedPhotoPaths((paths) => [...paths, removed.path]);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   // 카카오 로컬 검색 API(장소검색/주소검색)를 300ms 디바운스로 호출한다.
@@ -122,8 +121,9 @@ export function LoveCreateForm() {
     });
   }
 
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!userId || !workspaceId) return;
 
     // 요구사항 3.2.6: 장소·날짜는 예외 없이 필수 (지도·달력 뷰가 항상 채워지도록).
     const nextErrors: typeof errors = {};
@@ -133,46 +133,42 @@ export function LoveCreateForm() {
     if (Object.keys(nextErrors).length > 0) return;
 
     const recordedAt = new Date(`${date}T${time}:00`).toISOString();
-    const newPhotoDataUrls = await Promise.all(photos.map((photo) => fileToDataUrl(photo.file)));
-    const photoDataUrls = [
-      ...existingPhotos.map((photo) => photo.imageUrl).filter((url): url is string => !!url),
-      ...newPhotoDataUrls,
-    ];
-
-    const payload = {
-      authorName,
-      body: body.trim(),
-      placeName: placeName.trim(),
-      lat: placeCoords?.lat,
-      lng: placeCoords?.lng,
-      recordedAt,
-      photoDataUrls,
-    };
+    const newPhotoFiles = photos.map((photo) => photo.file);
 
     if (isEditMode && editingRecord) {
-      updateRecord({ id: editingRecord.id, ...payload }, { onSuccess: () => navigate(`/love?record=${editingRecord.id}`) });
+      updateRecord(
+        {
+          id: editingRecord.id,
+          workspaceId,
+          body: body.trim(),
+          placeName: placeName.trim(),
+          lat: placeCoords?.lat,
+          lng: placeCoords?.lng,
+          recordedAt,
+          removedPhotoPaths,
+          newPhotoFiles,
+        },
+        { onSuccess: () => navigate(`/love?record=${editingRecord.id}`) },
+      );
     } else {
-      createRecord(payload, { onSuccess: () => navigate('/love') });
+      createRecord(
+        {
+          workspaceId,
+          authorId: userId,
+          body: body.trim(),
+          placeName: placeName.trim(),
+          lat: placeCoords?.lat,
+          lng: placeCoords?.lng,
+          recordedAt,
+          photoFiles: newPhotoFiles,
+        },
+        { onSuccess: () => navigate('/love') },
+      );
     }
   }
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      <div className={styles.field}>
-        <label className={styles.label}>작성자</label>
-        <div className={styles.authorToggle}>
-          {LOVE_AUTHORS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={name === authorName ? `${styles.authorButton} ${styles.authorButtonActive}` : styles.authorButton}
-              onClick={() => setAuthorName(name)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className={styles.field}>
         <label className={styles.label}>

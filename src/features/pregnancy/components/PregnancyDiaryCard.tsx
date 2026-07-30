@@ -16,9 +16,7 @@ export function PregnancyDiaryCard({ diary }: { diary: PregnancyDiary }) {
       <div className={styles.body}>
         <p className={styles.title}>{diary.title}</p>
         <p className={styles.text}>{diary.body}</p>
-        <p className={styles.meta}>
-          {diary.recordedAt} · {diary.visibility === 'family' ? '가족 공유' : '커플만'}
-        </p>
+        <p className={styles.meta}>{diary.recordedAt}</p>
       </div>
     </button>
   );

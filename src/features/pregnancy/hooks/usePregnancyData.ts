@@ -2,22 +2,35 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import {
   addDiaryComment,
+  createCheckup,
   createDiary,
   createEvent,
   createExpense,
+  createHealthLog,
+  deleteCheckup,
   deleteDiaryComment,
+  deleteEvent,
   deleteExpense,
+  deleteHealthLog,
   fetchCheckups,
   fetchDiaries,
   fetchEvents,
   fetchExpenses,
+  fetchHealthLogs,
   fetchWeekContent,
+  updateCheckup,
+  updateEvent,
+  updateExpense,
+  type SaveCheckupInput,
+  type SaveEventInput,
+  type SaveExpenseInput,
 } from '../api';
 
-export const diariesQueryKey = ['pregnancy-diaries'] as const;
-export const checkupsQueryKey = ['pregnancy-checkups'] as const;
-export const eventsQueryKey = ['pregnancy-events'] as const;
-export const expensesQueryKey = ['pregnancy-expenses'] as const;
+export const diariesQueryKey = (workspaceId: string) => ['pregnancy-diaries', workspaceId] as const;
+export const checkupsQueryKey = (workspaceId: string) => ['pregnancy-checkups', workspaceId] as const;
+export const eventsQueryKey = (workspaceId: string) => ['pregnancy-events', workspaceId] as const;
+export const expensesQueryKey = (workspaceId: string) => ['pregnancy-expenses', workspaceId] as const;
+export const healthLogsQueryKey = (workspaceId: string) => ['pregnancy-health-logs', workspaceId] as const;
 
 // 출산 예정일은 관리 페이지(admin)에서 입력하는 workspace.due_date를 그대로 쓴다 (shared로 승격,
 // 2026-07-23).
@@ -26,70 +39,138 @@ export function useDueDate() {
   return { ...rest, data: data?.dueDate };
 }
 
-export function useDiaries() {
-  return useQuery({ queryKey: diariesQueryKey, queryFn: fetchDiaries });
+export function useDiaries(workspaceId: string | undefined) {
+  return useQuery({ queryKey: diariesQueryKey(workspaceId ?? ''), queryFn: () => fetchDiaries(workspaceId!), enabled: !!workspaceId });
 }
 
-export function useCreateDiary() {
+export function useCreateDiary(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createDiary,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: diariesQueryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: diariesQueryKey(workspaceId ?? '') }),
   });
 }
 
-export function useAddDiaryComment() {
+export function useAddDiaryComment(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: addDiaryComment,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: diariesQueryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: diariesQueryKey(workspaceId ?? '') }),
   });
 }
 
-export function useDeleteDiaryComment() {
+export function useDeleteDiaryComment(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteDiaryComment,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: diariesQueryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: diariesQueryKey(workspaceId ?? '') }),
   });
 }
 
-export function useCheckups() {
-  return useQuery({ queryKey: checkupsQueryKey, queryFn: fetchCheckups });
+export function useCheckups(workspaceId: string | undefined) {
+  return useQuery({ queryKey: checkupsQueryKey(workspaceId ?? ''), queryFn: () => fetchCheckups(workspaceId!), enabled: !!workspaceId });
+}
+
+export function useCreateCheckup(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SaveCheckupInput) => createCheckup(workspaceId!, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: checkupsQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useUpdateCheckup(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: SaveCheckupInput }) => updateCheckup(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: checkupsQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useDeleteCheckup(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteCheckup,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: checkupsQueryKey(workspaceId ?? '') }),
+  });
 }
 
 export function useWeekContent(weekNo: number) {
   return useQuery({ queryKey: ['pregnancy-week-content', weekNo], queryFn: () => fetchWeekContent(weekNo) });
 }
 
-export function useEvents() {
-  return useQuery({ queryKey: eventsQueryKey, queryFn: fetchEvents });
+export function useEvents(workspaceId: string | undefined) {
+  return useQuery({ queryKey: eventsQueryKey(workspaceId ?? ''), queryFn: () => fetchEvents(workspaceId!), enabled: !!workspaceId });
 }
 
-export function useCreateEvent() {
+export function useCreateEvent(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createEvent,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey }),
+    mutationFn: (input: SaveEventInput) => createEvent(workspaceId!, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey(workspaceId ?? '') }),
   });
 }
 
-export function useExpenses() {
-  return useQuery({ queryKey: expensesQueryKey, queryFn: fetchExpenses });
-}
-
-export function useCreateExpense() {
+export function useUpdateEvent(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createExpense,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: expensesQueryKey }),
+    mutationFn: ({ id, input }: { id: string; input: SaveEventInput }) => updateEvent(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey(workspaceId ?? '') }),
   });
 }
 
-export function useDeleteExpense() {
+export function useDeleteEvent(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useExpenses(workspaceId: string | undefined) {
+  return useQuery({ queryKey: expensesQueryKey(workspaceId ?? ''), queryFn: () => fetchExpenses(workspaceId!), enabled: !!workspaceId });
+}
+
+export function useCreateExpense(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SaveExpenseInput) => createExpense(workspaceId!, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: expensesQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useUpdateExpense(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: SaveExpenseInput }) => updateExpense(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: expensesQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useDeleteExpense(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteExpense,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: expensesQueryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: expensesQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useHealthLogs(workspaceId: string | undefined) {
+  return useQuery({ queryKey: healthLogsQueryKey(workspaceId ?? ''), queryFn: () => fetchHealthLogs(workspaceId!), enabled: !!workspaceId });
+}
+
+export function useCreateHealthLog(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof createHealthLog>[1]) => createHealthLog(workspaceId!, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: healthLogsQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useDeleteHealthLog(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteHealthLog,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: healthLogsQueryKey(workspaceId ?? '') }),
   });
 }

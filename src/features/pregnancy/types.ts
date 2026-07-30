@@ -66,6 +66,15 @@ export interface PregnancyExpense {
   memo: string;
 }
 
+export interface HealthLog {
+  id: string;
+  loggedAt: string; // ISO date
+  weight?: number;
+  bloodPressure?: string;
+  symptom?: string;
+  fetalMovementCount?: number;
+}
+
 export interface WeekContent {
   weekNo: number;
   sizeMetaphor: string;

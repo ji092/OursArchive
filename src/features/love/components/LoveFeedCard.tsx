@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
-import type { LoveRecord } from '../mockLoveRecords';
+import type { LoveRecord } from '../types';
 import styles from './LoveFeedCard.module.css';
 
 function formatRecordedAt(iso: string): string {

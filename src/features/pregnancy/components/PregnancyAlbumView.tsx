@@ -2,15 +2,18 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePregnancyActionsHost } from '../actionsPortal';
 import { useCreateDiary, useDiaries } from '../hooks/usePregnancyData';
-import type { Visibility } from '../types';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import { PregnancyDiaryCard } from './PregnancyDiaryCard';
 import { PregnancyDiaryModalController } from './PregnancyDiaryModalController';
 import styles from './PregnancyAlbumView.module.css';
 
 // 성장 일기(사진 기록) 그리드 — 패턴 A(RecordThumbnail/RecordDetailModal) 재사용.
+// "가족과 공유" 토글은 없앴다 — family는 pregnancy_diary에 접근할 수 없어졌다
+// (0009_pregnancy_family_revoke.sql, 2026-07-29 사용자 지정: 아기 생기면 baby 챕터만 공유).
 export function PregnancyAlbumView() {
-  const { data: diaries } = useDiaries();
-  const createDiary = useCreateDiary();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: diaries } = useDiaries(workspaceId);
+  const createDiary = useCreateDiary(workspaceId);
   const actionsHost = usePregnancyActionsHost();
   const [showForm, setShowForm] = useState(false);
   const [weekNo, setWeekNo] = useState(1);
@@ -18,12 +21,11 @@ export function PregnancyAlbumView() {
   const [body, setBody] = useState('');
   const [isUltrasound, setIsUltrasound] = useState(false);
   const [recordedAt, setRecordedAt] = useState(new Date().toISOString().slice(0, 10));
-  const [visibility, setVisibility] = useState<Visibility>('family');
 
   function handleCreate() {
-    if (!title.trim() || !body.trim()) return;
+    if (!title.trim() || !body.trim() || !workspaceId) return;
     createDiary.mutate(
-      { weekNo, title: title.trim(), body: body.trim(), isUltrasound, recordedAt, visibility },
+      { workspaceId, weekNo, title: title.trim(), body: body.trim(), isUltrasound, recordedAt },
       {
         onSuccess: () => {
           setShowForm(false);
@@ -64,10 +66,6 @@ export function PregnancyAlbumView() {
             <label className={styles.checkboxLabel}>
               <input type="checkbox" checked={isUltrasound} onChange={(e) => setIsUltrasound(e.target.checked)} />
               초음파 사진이에요
-            </label>
-            <label className={styles.checkboxLabel}>
-              <input type="checkbox" checked={visibility === 'family'} onChange={(e) => setVisibility(e.target.checked ? 'family' : 'couple')} />
-              가족과 공유
             </label>
           </div>
           <button type="button" className={styles.submit} onClick={handleCreate}>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useCreatePrepItem, usePrepItems, useUpdatePrepItem } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { PrepItem, WeddingCategory } from '../types';
 import { buildBudget, CATEGORIES, PrepItemEditForm, toPrepItemPatch, type PrepItemEditFormValues } from './PrepItemEditForm';
 import { PrepItemRow } from './PrepItemRow';
@@ -42,9 +43,10 @@ const SORT_OPTIONS: { mode: SortMode; label: string; icon: () => JSX.Element }[]
 ];
 
 export function WeddingChecklistView() {
-  const { data: items } = usePrepItems();
-  const createItem = useCreatePrepItem();
-  const updateItem = useUpdatePrepItem();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: items } = usePrepItems(workspaceId);
+  const createItem = useCreatePrepItem(workspaceId);
+  const updateItem = useUpdatePrepItem(workspaceId);
   const actionsHost = useWeddingActionsHost();
   const [editingItem, setEditingItem] = useState<PrepItem | 'new' | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('all');
@@ -59,11 +61,13 @@ export function WeddingChecklistView() {
 
   function handleSubmit(values: PrepItemEditFormValues) {
     if (editingItem === 'new') {
+      if (!workspaceId) return;
       createItem.mutate(
         {
+          workspaceId,
           title: values.title,
           category: values.category,
-          assigneeName: values.assigneeName,
+          assigneeId: values.assigneeId,
           checklist: { dueDate: values.dueDate },
           consultNoteIds: values.consultNoteIds,
           budget: buildBudget(values),

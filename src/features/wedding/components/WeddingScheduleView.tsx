@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import { formatWon } from '../deriveStats';
 import type { PrepItem, WeddingEventType } from '../types';
 import { ScheduleEditModal } from './ScheduleEditModal';
@@ -35,8 +36,9 @@ function buildMonthCells(year: number, month: number): (number | null)[] {
 }
 
 export function WeddingScheduleView() {
-  const { data: items } = usePrepItems();
-  const { data: consultNotes } = useConsultNotes();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: items } = usePrepItems(workspaceId);
+  const { data: consultNotes } = useConsultNotes(workspaceId);
   const actionsHost = useWeddingActionsHost();
   const [showForm, setShowForm] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDeletePrepItem, useToggleChecklistDone } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { PrepItem } from '../types';
 import styles from './PrepItemRow.module.css';
 
@@ -11,8 +12,9 @@ export interface PrepItemRowProps {
 
 export function PrepItemRow({ item, onEdit }: PrepItemRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const toggleDone = useToggleChecklistDone();
-  const deleteItem = useDeletePrepItem();
+  const workspaceId = useCurrentWorkspaceId();
+  const toggleDone = useToggleChecklistDone(workspaceId);
+  const deleteItem = useDeletePrepItem(workspaceId);
   if (!item.checklist) return null;
 
   return (

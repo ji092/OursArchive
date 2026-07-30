@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { photoCountToGradients } from '../api';
+import { saveHoneymoonDayPhotos } from '../api';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { HoneymoonDay, PaymentMethod } from '../types';
 import styles from './HoneymoonDayDetailModal.module.css';
 
@@ -9,56 +10,67 @@ const PAYMENT_METHODS: PaymentMethod[] = ['카드', '현금'];
 export interface HoneymoonDayDetailModalProps {
   day: HoneymoonDay;
   onClose: () => void;
-  onSave: (patch: Omit<HoneymoonDay, 'id' | 'dayNumber'>) => void;
+  onSave: (patch: Omit<HoneymoonDay, 'id' | 'dayNumber' | 'photos'>) => void;
 }
 
-// 일차 상세 — 메모, 캡처/사진(실제 업로드는 R2 연동 전까지 개수만 반영), 예산/실제지출/지출방식을
-// 입력·수정한다. 신혼여행 탭 전용, 다른 챕터에 재사용하지 않는다.
+// 일차 상세 — 메모/예산은 부모의 whole-object 저장(save_honeymoon RPC)을 그대로 타고, 사진만
+// day.id가 안정적이라는 전제(WeddingHoneymoonView.tsx addDay() 참조) 하에 즉시 업로드/삭제한다.
 export function HoneymoonDayDetailModal({ day, onClose, onSave }: HoneymoonDayDetailModalProps) {
+  const workspaceId = useCurrentWorkspaceId();
   const [title, setTitle] = useState(day.title);
   const [detail, setDetail] = useState(day.detail);
-  const [photos, setPhotos] = useState<{ file?: File; previewUrl: string }[]>([]);
-  const [existingPhotoCount] = useState(day.photos.length);
+  const [existingPhotos, setExistingPhotos] = useState(day.photos);
+  const [removedPhotoPaths, setRemovedPhotoPaths] = useState<string[]>([]);
+  const [newPhotos, setNewPhotos] = useState<{ file: File; previewUrl: string }[]>([]);
   const [plannedAmount, setPlannedAmount] = useState(day.budget.plannedAmount ? String(day.budget.plannedAmount) : '');
   const [usedAmount, setUsedAmount] = useState(day.budget.usedAmount ? String(day.budget.usedAmount) : '');
   const [method, setMethod] = useState<PaymentMethod | null>(day.budget.method);
   const [memo, setMemo] = useState(day.budget.memo);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     return () => {
-      photos.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
+      newPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
-    const room = MAX_PHOTOS - existingPhotoCount - photos.length;
+    const room = MAX_PHOTOS - existingPhotos.length - newPhotos.length;
     const accepted = files.slice(0, Math.max(0, room)).map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
-    setPhotos((prev) => [...prev, ...accepted]);
+    setNewPhotos((prev) => [...prev, ...accepted]);
     event.target.value = '';
   }
 
   function removeNewPhoto(index: number) {
-    setPhotos((prev) => {
+    setNewPhotos((prev) => {
       URL.revokeObjectURL(prev[index].previewUrl);
       return prev.filter((_, i) => i !== index);
     });
   }
 
-  function handleSave() {
-    if (!title.trim()) return;
-    onSave({
-      title: title.trim(),
-      detail: detail.trim(),
-      photos: photoCountToGradients(existingPhotoCount + photos.length),
-      budget: {
-        plannedAmount: Number(plannedAmount || 0),
-        usedAmount: Number(usedAmount || 0),
-        method,
-        memo,
-      },
+  function removeExistingPhoto(index: number) {
+    setExistingPhotos((prev) => {
+      const removed = prev[index];
+      if (removed) setRemovedPhotoPaths((paths) => [...paths, removed.path]);
+      return prev.filter((_, i) => i !== index);
     });
+  }
+
+  async function handleSave() {
+    if (!title.trim() || !workspaceId) return;
+    setIsSaving(true);
+    try {
+      await saveHoneymoonDayPhotos(workspaceId, day.id, removedPhotoPaths, newPhotos.map((p) => p.file));
+      onSave({
+        title: title.trim(),
+        detail: detail.trim(),
+        budget: { plannedAmount: Number(plannedAmount || 0), usedAmount: Number(usedAmount || 0), method, memo },
+      });
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -78,20 +90,28 @@ export function HoneymoonDayDetailModal({ day, onClose, onSave }: HoneymoonDayDe
         <textarea className={styles.textarea} value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="이 날의 메모를 남겨보세요" />
 
         <label className={styles.label}>
-          사진 <span className={styles.photoCount}>{existingPhotoCount + photos.length}/{MAX_PHOTOS}</span>
+          사진 <span className={styles.photoCount}>{existingPhotos.length + newPhotos.length}/{MAX_PHOTOS}</span>
         </label>
         <div className={styles.photoGrid}>
-          {Array.from({ length: existingPhotoCount }).map((_, i) => (
-            <div key={`existing-${i}`} className={styles.photoThumb} style={{ background: day.photos[i]?.gradient }} />
+          {existingPhotos.map((photo, i) => (
+            <div
+              key={`existing-${i}`}
+              className={styles.photoThumb}
+              style={{ backgroundImage: photo.imageUrl ? `url(${photo.imageUrl})` : undefined, background: photo.imageUrl ? undefined : photo.gradient }}
+            >
+              <button type="button" className={styles.photoRemove} onClick={() => removeExistingPhoto(i)} aria-label="사진 삭제">
+                ✕
+              </button>
+            </div>
           ))}
-          {photos.map((photo, i) => (
+          {newPhotos.map((photo, i) => (
             <div key={i} className={styles.photoThumb} style={{ backgroundImage: `url(${photo.previewUrl})` }}>
               <button type="button" className={styles.photoRemove} onClick={() => removeNewPhoto(i)} aria-label="사진 삭제">
                 ✕
               </button>
             </div>
           ))}
-          {existingPhotoCount + photos.length < MAX_PHOTOS && (
+          {existingPhotos.length + newPhotos.length < MAX_PHOTOS && (
             <label className={styles.photoAdd}>
               +
               <input type="file" accept="image/*" multiple hidden onChange={handlePhotoChange} />
@@ -134,8 +154,8 @@ export function HoneymoonDayDetailModal({ day, onClose, onSave }: HoneymoonDayDe
           />
         </div>
 
-        <button type="button" className={styles.submit} onClick={handleSave}>
-          저장하기
+        <button type="button" className={styles.submit} onClick={handleSave} disabled={isSaving}>
+          {isSaving ? '저장 중…' : '저장하기'}
         </button>
       </div>
     </div>

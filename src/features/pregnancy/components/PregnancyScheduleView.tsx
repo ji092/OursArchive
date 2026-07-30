@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
 import { usePregnancyActionsHost } from '../actionsPortal';
-import { useDiaries, useEvents } from '../hooks/usePregnancyData';
+import { useDeleteEvent, useDiaries, useEvents } from '../hooks/usePregnancyData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { PregnancyDiary, PregnancyEvent, PregnancyEventType } from '../types';
 import { PregnancyEventEditModal } from './PregnancyEventEditModal';
 import styles from './PregnancyScheduleView.module.css';
@@ -34,10 +35,13 @@ function buildMonthCells(year: number, month: number): (number | null)[] {
 // 셋이 챕터의 시그니처(코랄)를 그대로 이어받는다(PregnancyLayout의 --color-accent). 체크리스트/
 // 상담노트 연결처럼 임신 챕터에 아직 없는 개념은 뺐다.
 export function PregnancyScheduleView() {
-  const { data: events } = useEvents();
-  const { data: diaries } = useDiaries();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: events } = useEvents(workspaceId);
+  const { data: diaries } = useDiaries(workspaceId);
+  const deleteEvent = useDeleteEvent(workspaceId);
   const actionsHost = usePregnancyActionsHost();
   const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<PregnancyEvent | null>(null);
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -97,6 +101,7 @@ export function PregnancyScheduleView() {
       {actionsHost && createPortal(actionsNode, actionsHost)}
 
       {showForm && <PregnancyEventEditModal onClose={() => setShowForm(false)} />}
+      {editingEvent && <PregnancyEventEditModal event={editingEvent} onClose={() => setEditingEvent(null)} />}
 
       <div className={styles.layout}>
         <div className={styles.calendarCol}>
@@ -199,6 +204,21 @@ export function PregnancyScheduleView() {
             <p className={styles.detailMeta}>
               {selectedEvent.eventType} · {selectedEvent.location} · {formatDate(selectedEvent.scheduledAt)}
             </p>
+            <div className={styles.detailActions}>
+              <button type="button" className={styles.detailActionButton} onClick={() => setEditingEvent(selectedEvent)}>
+                수정
+              </button>
+              <button
+                type="button"
+                className={styles.detailActionButton}
+                onClick={() => {
+                  deleteEvent.mutate(selectedEvent.id);
+                  setSelectedEventId(null);
+                }}
+              >
+                삭제
+              </button>
+            </div>
           </div>
         )}
       </div>

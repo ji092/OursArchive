@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { WeddingActionsHostContext } from '@/features/wedding/actionsPortal';
 import { computeBudgetSummary, computeChecklistProgress, computeDday } from '@/features/wedding/deriveStats';
 import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import styles from './WeddingLayout.module.css';
 
 const TABS = [
@@ -12,12 +13,15 @@ const TABS = [
   { to: '/wedding/budget', label: '예산' },
   { to: '/wedding/consult-notes', label: '상담 노트' },
   { to: '/wedding/honeymoon', label: '신혼여행' },
+  { to: '/wedding/vendor-contacts', label: '업체 연락처' },
+  { to: '/wedding/expenses', label: '지출 내역' },
 ];
 
 // 요구사항 3.3.1 — 요약 헤더는 전 탭 고정, D-DAY/완료%/예산 사용%는 전부 파생값(deriveStats.ts).
 export default function WeddingLayout() {
+  const workspaceId = useCurrentWorkspaceId();
   const { data: weddingDate } = useWeddingDate();
-  const { data: items } = usePrepItems();
+  const { data: items } = usePrepItems(workspaceId);
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
 
   const dday = weddingDate ? computeDday(weddingDate) : null;

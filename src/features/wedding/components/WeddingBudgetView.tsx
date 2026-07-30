@@ -1,9 +1,11 @@
 import { computeBudgetSummary, computeCategoryBudget, formatWon } from '../deriveStats';
 import { usePrepItems } from '../hooks/useWeddingData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import styles from './WeddingBudgetView.module.css';
 
 export function WeddingBudgetView() {
-  const { data: items } = usePrepItems();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: items } = usePrepItems(workspaceId);
   if (!items) return <p>불러오는 중…</p>;
 
   const categoryBudget = computeCategoryBudget(items);

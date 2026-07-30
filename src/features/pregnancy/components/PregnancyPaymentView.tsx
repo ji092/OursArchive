@@ -7,8 +7,9 @@ import {
   filterExpensesByMonth,
   filterExpensesByYear,
 } from '../deriveStats';
-import { useCreateExpense, useDeleteExpense, useExpenses } from '../hooks/usePregnancyData';
-import { PREGNANCY_EXPENSE_CATEGORIES, type PregnancyExpenseCategory } from '../types';
+import { useCreateExpense, useDeleteExpense, useExpenses, useUpdateExpense } from '../hooks/usePregnancyData';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { PREGNANCY_EXPENSE_CATEGORIES, type PregnancyExpense, type PregnancyExpenseCategory } from '../types';
 import styles from './PregnancyPaymentView.module.css';
 
 type Period = 'month' | 'year';
@@ -21,14 +22,17 @@ function formatWon(amount: number): string {
 // Master·파트너 전용 데이터다(0004_pregnancy_baby_policies.sql의 can_access_couple_content와 동일 원칙 —
 // family/guest에게 열지 않는다. 실제 로그인 연동 전까지는 프론트에서 role 분기는 하지 않는다).
 export function PregnancyPaymentView() {
-  const { data: expenses } = useExpenses();
-  const createExpense = useCreateExpense();
-  const deleteExpense = useDeleteExpense();
+  const workspaceId = useCurrentWorkspaceId();
+  const { data: expenses } = useExpenses(workspaceId);
+  const createExpense = useCreateExpense(workspaceId);
+  const updateExpense = useUpdateExpense(workspaceId);
+  const deleteExpense = useDeleteExpense(workspaceId);
   const actionsHost = usePregnancyActionsHost();
 
   const [period, setPeriod] = useState<Period>('month');
   const [cursor, setCursor] = useState(() => new Date());
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [category, setCategory] = useState<PregnancyExpenseCategory>('병원·검진');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -53,20 +57,47 @@ export function PregnancyPaymentView() {
   function handleSubmit() {
     const amountNum = Number(amount);
     if (!amountNum || amountNum <= 0) return;
-    createExpense.mutate(
-      { category, amount: amountNum, date, memo: memo.trim() },
-      {
-        onSuccess: () => {
-          setShowForm(false);
-          setAmount('');
-          setMemo('');
-        },
-      },
-    );
+    const input = { category, amount: amountNum, date, memo: memo.trim() };
+    const onSuccess = () => {
+      setShowForm(false);
+      setEditingId(null);
+      setAmount('');
+      setMemo('');
+    };
+    if (editingId) {
+      updateExpense.mutate({ id: editingId, input }, { onSuccess });
+    } else {
+      createExpense.mutate(input, { onSuccess });
+    }
+  }
+
+  function openEdit(expense: PregnancyExpense) {
+    setEditingId(expense.id);
+    setCategory(expense.category);
+    setAmount(String(expense.amount));
+    setDate(expense.date);
+    setMemo(expense.memo);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
   }
 
   const actionsNode = (
-    <button type="button" className={styles.addButton} onClick={() => setShowForm((v) => !v)}>
+    <button
+      type="button"
+      className={styles.addButton}
+      onClick={() => {
+        setEditingId(null);
+        setCategory('병원·검진');
+        setAmount('');
+        setDate(new Date().toISOString().slice(0, 10));
+        setMemo('');
+        setShowForm((v) => !v);
+      }}
+    >
       + 지출 추가
     </button>
   );
@@ -76,11 +107,11 @@ export function PregnancyPaymentView() {
       {actionsHost && createPortal(actionsNode, actionsHost)}
 
       {showForm && (
-        <div className={styles.overlay} onClick={() => setShowForm(false)}>
+        <div className={styles.overlay} onClick={closeForm}>
           <div className={styles.form} onClick={(e) => e.stopPropagation()}>
             <div className={styles.formHead}>
-              <p className={styles.formTitle}>지출 추가</p>
-              <button type="button" className={styles.closeButton} onClick={() => setShowForm(false)} aria-label="닫기">
+              <p className={styles.formTitle}>{editingId ? '지출 수정' : '지출 추가'}</p>
+              <button type="button" className={styles.closeButton} onClick={closeForm} aria-label="닫기">
                 ✕
               </button>
             </div>
@@ -114,7 +145,7 @@ export function PregnancyPaymentView() {
             <input className={styles.input} placeholder="예: 16주 정밀초음파" value={memo} onChange={(e) => setMemo(e.target.value)} />
 
             <button type="button" className={styles.submit} onClick={handleSubmit}>
-              추가하기
+              {editingId ? '저장하기' : '추가하기'}
             </button>
           </div>
         </div>
@@ -184,17 +215,26 @@ export function PregnancyPaymentView() {
         <p className={styles.cardTitle}>지출 내역</p>
         <div className={styles.expenseList}>
           {periodExpenses.map((e) => (
-            <div key={e.id} className={styles.expenseRow}>
+            <button key={e.id} type="button" className={styles.expenseRow} onClick={() => openEdit(e)}>
               <span className={styles.expenseBadge}>{e.category}</span>
               <div className={styles.expenseInfo}>
                 <p className={styles.expenseMemo}>{e.memo || e.category}</p>
                 <p className={styles.expenseDate}>{e.date}</p>
               </div>
               <span className={styles.expenseAmount}>{formatWon(e.amount)}</span>
-              <button type="button" className={styles.expenseDelete} onClick={() => deleteExpense.mutate(e.id)} aria-label="삭제">
+              <span
+                role="button"
+                tabIndex={0}
+                className={styles.expenseDelete}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  deleteExpense.mutate(e.id);
+                }}
+                aria-label="삭제"
+              >
                 ✕
-              </button>
-            </div>
+              </span>
+            </button>
           ))}
           {periodExpenses.length === 0 && <p className={styles.empty}>등록된 지출이 없어요.</p>}
         </div>

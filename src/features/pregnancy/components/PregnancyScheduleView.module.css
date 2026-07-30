@@ -283,3 +283,18 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
+
+.detailActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detailActionButton {
+  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}

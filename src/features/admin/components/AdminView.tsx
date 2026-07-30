@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import type { WorkspaceSettings } from '@/shared/lib/workspace/workspaceSettingsApi';
 import { useApproveJoinRequest, useJoinRequests, useRejectJoinRequest } from '../hooks/useJoinRequests';
@@ -24,6 +25,7 @@ const DATE_FIELDS: { key: keyof WorkspaceSettings; label: string; description: s
 ];
 
 export function AdminView() {
+  const workspaceId = useCurrentWorkspaceId();
   const { data: joinRequests } = useJoinRequests();
   const approveJoinRequest = useApproveJoinRequest();
   const rejectJoinRequest = useRejectJoinRequest();
@@ -33,7 +35,6 @@ export function AdminView() {
   const inviteMember = useInviteMember();
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
-  const [relationLabel, setRelationLabel] = useState('');
   const [inviteRole, setInviteRole] = useState<Exclude<MemberRole, 'master'>>('family');
 
   const { data: settings } = useWorkspaceSettings();
@@ -60,14 +61,13 @@ export function AdminView() {
   );
 
   function handleInvite() {
-    if (!email.trim()) return;
+    if (!email.trim() || !workspaceId) return;
     inviteMember.mutate(
-      { email: email.trim(), relationLabel: relationLabel.trim() || '게스트', role: inviteRole },
+      { workspaceId, email: email.trim(), role: inviteRole },
       {
         onSuccess: () => {
           setShowInvite(false);
           setEmail('');
-          setRelationLabel('');
         },
       },
     );
@@ -141,7 +141,6 @@ export function AdminView() {
       {showInvite && (
         <div className={styles.inviteForm}>
           <input className={styles.input} placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className={styles.input} placeholder="관계 (예: 친정 어머니)" value={relationLabel} onChange={(e) => setRelationLabel(e.target.value)} />
           <select className={styles.select} value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Exclude<MemberRole, 'master'>)}>
             <option value="partner">애인</option>
             <option value="family">가족</option>
@@ -163,10 +162,12 @@ export function AdminView() {
                 {member.status === 'invited' && <span className={styles.pendingBadge}>초대 대기</span>}
               </p>
               <p className={styles.meta}>
-                {member.relationLabel} · {member.email}
+                {[member.relationLabel, member.email].filter(Boolean).join(' · ')}
               </p>
             </div>
-            {member.role === 'master' ? (
+            {member.status === 'invited' ? (
+              <span className={styles.pendingBadge}>{ROLE_LABELS[member.role]} 초대중</span>
+            ) : member.role === 'master' ? (
               <span className={styles.masterBadge}>Master</span>
             ) : (
               <select
@@ -179,7 +180,7 @@ export function AdminView() {
                 <option value="guest">게스트</option>
               </select>
             )}
-            {member.role !== 'master' && (
+            {member.status !== 'invited' && member.role !== 'master' && (
               <button type="button" className={styles.removeButton} onClick={() => removeMember.mutate(member.id)} aria-label="내보내기">
                 🗑
               </button>
