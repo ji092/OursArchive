@@ -10,6 +10,13 @@ declare const self: ServiceWorkerGlobalScope & {
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// registerType 'autoUpdate'의 짝 — injectManifest 전략에서는 플러그인이 이 둘을 자동 주입해주지
+// 않는다. 없으면 새 서비스워커가 waiting에 머물러서 앱을 완전히 종료해야만 갱신된다.
+self.skipWaiting();
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   const { title, url } = event.data.json() as { title: string; url?: string };
