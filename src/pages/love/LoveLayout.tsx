@@ -42,11 +42,11 @@ export default function LoveLayout() {
           <div className={styles.newButtonGroup}>
             <NavLink to="/love/create" className={styles.newButton}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              사진기록
+              사진
             </NavLink>
             <NavLink to="/love/plan/create" className={styles.newButton}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              일정기록
+              일정
             </NavLink>
           </div>
         </div>

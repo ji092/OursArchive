@@ -78,16 +78,15 @@ export default function DashboardPage() {
           <div className={styles.ctaGroup}>
             <Link to="/love/create" className={styles.ctaPrimary}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              사진기록
+              사진
             </Link>
             <Link to="/love/plan/create" className={styles.ctaPrimary}>
               <img src="/icons/write.png" alt="" width={14} height={14} />
-              일정기록
+              일정
             </Link>
             {isMaster(membership?.role) && (
               <Link to="/admin/members" className={styles.ctaSecondary}>
                 <img src="/icons/admin.png" alt="" width={14} height={14} />
-                관리
               </Link>
             )}
           </div>
