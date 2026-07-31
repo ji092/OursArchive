@@ -136,21 +136,25 @@ begin
       end as reminder_title
     from due
   ),
+  -- CTE 컬럼은 전부 src_*/ws_*/n_* 로 별칭을 준다 — RETURNS TABLE의 출력 파라미터
+  -- (recipient_user_id/title/source_type/source_id)와 이름이 겹치면 plpgsql이
+  -- "column reference is ambiguous"로 실패하기 때문(2026-07-31 실제 배포 중 발견).
   recipients as (
-    select titled.reminder_title, titled.source_type, titled.source_id, titled.workspace_id, m.user_id
+    select titled.reminder_title as n_title, titled.source_type as src_type,
+           titled.source_id as src_id, titled.workspace_id as ws_id, m.user_id as uid
     from titled
     join membership m on m.workspace_id = titled.workspace_id and m.role = titled.ack_role
       and m.status = 'active' and m.user_id <> titled.created_by
   ),
   inserted as (
     insert into notification (workspace_id, recipient_user_id, type, title, meta, source_table, source_id)
-    select workspace_id, user_id, 'schedule_reminder', reminder_title, null, source_type::text, source_id
-    from recipients
-    returning recipient_user_id, title, source_id
+    select r.ws_id, r.uid, 'schedule_reminder', r.n_title, null, r.src_type::text, r.src_id
+    from recipients r
+    returning notification.recipient_user_id as n_uid, notification.title as n_ttl, notification.source_id as n_sid
   )
-  select inserted.recipient_user_id, inserted.title, recipients.source_type, inserted.source_id
-  from inserted
-  join recipients on recipients.user_id = inserted.recipient_user_id and recipients.source_id = inserted.source_id;
+  select i.n_uid, i.n_ttl, r2.src_type, i.n_sid
+  from inserted i
+  join recipients r2 on r2.uid = i.n_uid and r2.src_id = i.n_sid;
 end;
 $$;
 
