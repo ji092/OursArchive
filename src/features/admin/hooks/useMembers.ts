@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMembers, removeMember, updateMemberRole } from '../api';
 import type { MemberRole } from '../types';
 
-export const membersQueryKey = ['admin-members'] as const;
+const membersQueryKey = ['admin-members'] as const;
 
 export function useMembers() {
   return useQuery({ queryKey: membersQueryKey, queryFn: fetchMembers });

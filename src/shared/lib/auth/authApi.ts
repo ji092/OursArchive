@@ -5,8 +5,7 @@ import type { MembershipRole } from '@/shared/lib/rbac/permissions';
 // 카카오 로그인 → membership 행이 없으면 join_message와 함께 pending 요청을 만들고,
 // Master가 관리 페이지에서 승인(role 지정 + status: active)할 때까지 대기한다.
 // 구글 로그인은 사용하지 않는다 (2026-07-28 사용자 지정 — 카카오 단일 지원).
-export type { MembershipRole };
-export type MembershipStatus = 'active' | 'invited' | 'pending';
+type MembershipStatus = 'active' | 'invited' | 'pending';
 
 export interface MyMembership {
   id: string;

@@ -1,5 +1,5 @@
 // DB 설계(backend/migrations/0004_pregnancy_baby.sql)와 짝을 맞춘 프론트 타입.
-export type Visibility = 'couple' | 'family' | 'guest';
+type Visibility = 'couple' | 'family' | 'guest';
 
 export interface PregnancyDiary {
   id: string;
@@ -13,7 +13,7 @@ export interface PregnancyDiary {
   comments: { id: string; authorName: string; body: string }[];
 }
 
-export type CheckupStatus = 'done' | 'upcoming';
+type CheckupStatus = 'done' | 'upcoming';
 
 export interface Checkup {
   id: string;

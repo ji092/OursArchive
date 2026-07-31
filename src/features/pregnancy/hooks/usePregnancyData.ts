@@ -26,11 +26,11 @@ import {
   type SaveExpenseInput,
 } from '../api';
 
-export const diariesQueryKey = (workspaceId: string) => ['pregnancy-diaries', workspaceId] as const;
-export const checkupsQueryKey = (workspaceId: string) => ['pregnancy-checkups', workspaceId] as const;
-export const eventsQueryKey = (workspaceId: string) => ['pregnancy-events', workspaceId] as const;
-export const expensesQueryKey = (workspaceId: string) => ['pregnancy-expenses', workspaceId] as const;
-export const healthLogsQueryKey = (workspaceId: string) => ['pregnancy-health-logs', workspaceId] as const;
+const diariesQueryKey = (workspaceId: string) => ['pregnancy-diaries', workspaceId] as const;
+const checkupsQueryKey = (workspaceId: string) => ['pregnancy-checkups', workspaceId] as const;
+const eventsQueryKey = (workspaceId: string) => ['pregnancy-events', workspaceId] as const;
+const expensesQueryKey = (workspaceId: string) => ['pregnancy-expenses', workspaceId] as const;
+const healthLogsQueryKey = (workspaceId: string) => ['pregnancy-health-logs', workspaceId] as const;
 
 // 출산 예정일은 관리 페이지(admin)에서 입력하는 workspace.due_date를 그대로 쓴다 (shared로 승격,
 // 2026-07-23).

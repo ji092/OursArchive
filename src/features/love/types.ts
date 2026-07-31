@@ -6,7 +6,7 @@ export interface LoveRecordComment {
   body: string;
 }
 
-export interface LoveRecordPhoto {
+interface LoveRecordPhoto {
   path: string; // content-photos 버킷 안 경로 (backend/policies/0011_content_photos_storage.sql)
   gradient: string; // signed URL 로딩 전 임시 배경
   imageUrl?: string; // resolveContentPhotoUrls로 채워지는 signed URL

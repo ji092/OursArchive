@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMyProfile, resolveAvatarUrl, updateNickname, uploadAvatar } from '../api';
 
-export const myProfileQueryKey = (userId: string) => ['my-profile', userId] as const;
+const myProfileQueryKey = (userId: string) => ['my-profile', userId] as const;
 
 export function useMyProfile(userId: string | undefined) {
   return useQuery({

@@ -24,11 +24,11 @@ import {
   type SaveVendorContactInput,
 } from '../api';
 
-export const prepItemsQueryKey = (workspaceId: string) => ['wedding-prep-items', workspaceId] as const;
-export const consultNotesQueryKey = (workspaceId: string) => ['wedding-consult-notes', workspaceId] as const;
-export const honeymoonQueryKey = (workspaceId: string) => ['wedding-honeymoon', workspaceId] as const;
-export const vendorContactsQueryKey = (workspaceId: string) => ['wedding-vendor-contacts', workspaceId] as const;
-export const expensesQueryKey = (workspaceId: string) => ['wedding-expenses', workspaceId] as const;
+const prepItemsQueryKey = (workspaceId: string) => ['wedding-prep-items', workspaceId] as const;
+const consultNotesQueryKey = (workspaceId: string) => ['wedding-consult-notes', workspaceId] as const;
+const honeymoonQueryKey = (workspaceId: string) => ['wedding-honeymoon', workspaceId] as const;
+const vendorContactsQueryKey = (workspaceId: string) => ['wedding-vendor-contacts', workspaceId] as const;
+const expensesQueryKey = (workspaceId: string) => ['wedding-expenses', workspaceId] as const;
 
 // 결혼 날짜는 관리 페이지(admin)에서 입력하는 workspace.wedding_date를 그대로 쓴다 (shared로 승격,
 // 2026-07-23). 어느 챕터에도 속하지 않는 워크스페이스 공통 값이라 features/wedding 자체 저장을

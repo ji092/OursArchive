@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { approveJoinRequest, fetchJoinRequests, rejectJoinRequest } from '../joinRequestsApi';
 import type { MemberRole } from '../types';
 
-export const joinRequestsQueryKey = ['admin-join-requests'] as const;
+const joinRequestsQueryKey = ['admin-join-requests'] as const;
 
 export function useJoinRequests() {
   return useQuery({ queryKey: joinRequestsQueryKey, queryFn: fetchJoinRequests });

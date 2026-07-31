@@ -7,7 +7,7 @@ export type WeddingEventType = '상담' | '계약' | '청첩장모임' | '본식
 export type PaymentMethod = '카드' | '현금';
 
 // 계약금/중도금/잔금 각각의 지출 방식 — 카드/현금 선택 + 자유 메모(예: "현대카드", "계좌이체", "인출").
-export interface PaymentDetail {
+interface PaymentDetail {
   amount: number;
   method: PaymentMethod | null;
   memo: string;
@@ -33,7 +33,7 @@ export interface PrepItem {
 
 // content-photos 버킷 안 경로(path) + signed URL(imageUrl, 조회 시점에 resolveContentPhotoUrls로 채움) +
 // 로딩 전 임시 배경(gradient). 상담노트/신혼여행 일정 등 여러 곳에서 공용으로 쓴다.
-export interface PhotoPlaceholder {
+interface PhotoPlaceholder {
   path: string;
   gradient: string;
   imageUrl?: string;
@@ -87,7 +87,7 @@ export interface VendorContact {
   consultNoteId: string | null;
 }
 
-export type ExpenseStatus = 'planned' | 'paid';
+type ExpenseStatus = 'planned' | 'paid';
 
 // 지출(expense, 0003_wedding.sql) — budget_attr(항목별 예산)과 별개로, prep_item에 안 묶인
 // 단독 지출까지 자유롭게 기록하는 가계부. prepItemId는 선택(연결 안 해도 됨).

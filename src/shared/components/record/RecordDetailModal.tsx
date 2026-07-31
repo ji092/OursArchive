@@ -8,7 +8,7 @@ import styles from './RecordDetailModal.module.css';
 // 딥링크는 ?record=<id> 쿼리 파라미터로 열고 닫는다 (CLAUDE.md) — 이 컴포넌트 자체는 라우팅을
 // 모르고, 어떤 데이터를 보여줄지는 호출하는 화면(features/*)이 recordId로 조회해 props로 넘긴다.
 // 댓글 작성/삭제 콜백은 선택(optional) — 아직 연결하지 않은 챕터(임신·육아)에서는 읽기 전용으로 쓸 수 있다.
-export interface RecordDetailModalComment {
+interface RecordDetailModalComment {
   id: string;
   authorName: string;
   body: string;

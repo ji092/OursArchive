@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadKakaoMaps } from '@/shared/lib/kakao/loadKakaoMaps';
 import styles from './KakaoMap.module.css';
 
-export interface KakaoMapMarker {
+interface KakaoMapMarker {
   id: string;
   lat: number;
   lng: number;
