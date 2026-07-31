@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { useLovePlans } from '../hooks/useLovePlans';
 import { useLoveRecords } from '../hooks/useLoveRecords';
 import { LoveRecordDetailModalController } from './LoveRecordDetailModalController';
@@ -32,6 +33,7 @@ export function LoveCalendarView() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth()); // 0-11
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const recordsByDate = useMemo(() => {
     const map = new Map<string, typeof records>();
@@ -67,6 +69,7 @@ export function LoveCalendarView() {
     setYear(next.getFullYear());
     setMonth(next.getMonth());
     setSelectedDateKey(null);
+    setSelectedPlanId(null);
   }
 
   const selectedRecords = selectedDateKey ? (recordsByDate.get(selectedDateKey) ?? []) : [];
@@ -107,7 +110,10 @@ export function LoveCalendarView() {
               key={dateKey}
               type="button"
               className={isSelected ? `${styles.cell} ${styles.cellSelected}` : styles.cell}
-              onClick={() => setSelectedDateKey(isSelected ? null : dateKey)}
+              onClick={() => {
+                setSelectedDateKey(isSelected ? null : dateKey);
+                setSelectedPlanId(null);
+              }}
             >
               <span
                 className={hasPlan ? `${styles.cellDate} ${styles.cellDateHasPlan}` : styles.cellDate}
@@ -137,7 +143,12 @@ export function LoveCalendarView() {
           {selectedPlans.length > 0 && (
             <div className={styles.dayPanelPlans}>
               {selectedPlans.map((plan) => (
-                <div key={plan.id} className={styles.dayPanelPlanItem}>
+                <button
+                  key={plan.id}
+                  type="button"
+                  className={styles.dayPanelPlanItem}
+                  onClick={() => setSelectedPlanId((prev) => (prev === plan.id ? null : plan.id))}
+                >
                   <span className={styles.dayPanelPlanDot} />
                   <div>
                     <p className={styles.dayPanelItemBody}>{plan.title}</p>
@@ -146,8 +157,16 @@ export function LoveCalendarView() {
                       {plan.placeName ? ` · 📍 ${plan.placeName}` : ''}
                     </p>
                   </div>
-                </div>
+                </button>
               ))}
+              {selectedPlanId && membership?.workspaceId && (
+                <ScheduleCommentPanel
+                  sourceType="love_plan"
+                  sourceId={selectedPlanId}
+                  workspaceId={membership.workspaceId}
+                  currentUserId={session?.user.id}
+                />
+              )}
             </div>
           )}
           {selectedRecords.length === 0 && selectedPlans.length === 0 && (

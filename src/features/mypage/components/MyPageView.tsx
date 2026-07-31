@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ROLE_LABELS } from '@/shared/lib/rbac/permissions';
 import { useSession } from '@/shared/hooks/useAuth';
+import { isPushSubscribed, isPushSupported, registerPush, unregisterPush } from '@/shared/lib/push/registerPush';
 import { useAvatarUrl, useMyProfile, useUpdateNickname, useUploadAvatar } from '../hooks/useProfile';
 import styles from './MyPageView.module.css';
 
@@ -14,6 +15,12 @@ export function MyPageView() {
   const uploadAvatar = useUploadAvatar(userId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    isPushSubscribed().then(setPushEnabled);
+  }, []);
 
   if (!profile) return null;
 
@@ -24,6 +31,24 @@ export function MyPageView() {
     const file = e.target.files?.[0];
     if (file) uploadAvatar.mutate(file);
     e.target.value = '';
+  }
+
+  // 일정 등록 후 확인/댓글이 없으면 escalate하는 리마인더(0016_schedule_ack.sql)를 OS 푸시로
+  // 받을지 여기서 옵트인한다 — 브라우저가 사용자 제스처 없이는 알림 권한을 안 주기 때문에
+  // 자동으로 구독시키지 않는다.
+  async function togglePush() {
+    if (!userId) return;
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await unregisterPush();
+        setPushEnabled(false);
+      } else {
+        setPushEnabled(await registerPush(userId));
+      }
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   return (
@@ -77,6 +102,18 @@ export function MyPageView() {
           </button>
         </div>
       </div>
+
+      {isPushSupported() && (
+        <div className={styles.field}>
+          <span className={styles.label}>일정 알림</span>
+          <div className={styles.nicknameRow}>
+            <p className={styles.roleValue}>{pushEnabled ? '받는 중' : '꺼짐'}</p>
+            <button type="button" className={styles.saveButton} disabled={pushBusy} onClick={togglePush}>
+              {pushEnabled ? '끄기' : '켜기'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

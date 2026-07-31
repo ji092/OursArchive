@@ -151,6 +151,14 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .dayPanelPlanDot {

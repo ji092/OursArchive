@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
+import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { usePregnancyActionsHost } from '../actionsPortal';
 import { useDeleteEvent, useDiaries, useEvents } from '../hooks/usePregnancyData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import type { PregnancyDiary, PregnancyEvent, PregnancyEventType } from '../types';
 import { PregnancyEventEditModal } from './PregnancyEventEditModal';
 import styles from './PregnancyScheduleView.module.css';
@@ -36,6 +37,7 @@ function buildMonthCells(year: number, month: number): (number | null)[] {
 // 상담노트 연결처럼 임신 챕터에 아직 없는 개념은 뺐다.
 export function PregnancyScheduleView() {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
   const { data: events } = useEvents(workspaceId);
   const { data: diaries } = useDiaries(workspaceId);
   const deleteEvent = useDeleteEvent(workspaceId);
@@ -219,6 +221,15 @@ export function PregnancyScheduleView() {
                 삭제
               </button>
             </div>
+
+            {workspaceId && (
+              <ScheduleCommentPanel
+                sourceType="pregnancy_event"
+                sourceId={selectedEvent.id}
+                workspaceId={workspaceId}
+                currentUserId={session?.user.id}
+              />
+            )}
           </div>
         )}
       </div>

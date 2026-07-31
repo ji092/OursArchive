@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
+import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useCreateEvent, useUpdateEvent } from '../hooks/usePregnancyData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import type { AckRole } from '@/shared/lib/schedule/types';
 import type { PregnancyEvent, PregnancyEventType } from '../types';
 import { EVENT_TYPES } from './PregnancyScheduleView';
 import styles from './PregnancyEventEditModal.module.css';
@@ -23,6 +26,8 @@ export interface PregnancyEventEditModalProps {
 // 표시), 체크리스트/상담노트 연결처럼 임신 챕터에 아직 없는 개념은 뺐다. event가 있으면 수정 모드.
 export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditModalProps) {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
+  const { data: myMembership } = useMyMembership(session?.user.id);
   const createEvent = useCreateEvent(workspaceId);
   const updateEvent = useUpdateEvent(workspaceId);
 
@@ -36,6 +41,12 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
   const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  const [ackRole, setAckRole] = useState<AckRole>('partner');
+
+  useEffect(() => {
+    if (myMembership?.role === 'master') setAckRole('partner');
+    else if (myMembership?.role === 'partner') setAckRole('master');
+  }, [myMembership?.role]);
 
   useEffect(() => {
     const query = placeName.trim();
@@ -66,17 +77,23 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
   }
 
   function handleSubmit() {
-    if (!title.trim() || !placeName.trim()) return;
+    const userId = session?.user.id;
+    if (!title.trim() || !placeName.trim() || !workspaceId || !userId) return;
     const input = {
       title: title.trim(),
       eventType,
       scheduledAt: new Date(`${date}T${time}:00`).toISOString(),
       location: placeName.trim(),
     };
+
+    function ack(sourceId: string) {
+      createScheduleAck({ sourceType: 'pregnancy_event', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch(() => {});
+    }
+
     if (event) {
-      updateEvent.mutate({ id: event.id, input }, { onSuccess: onClose });
+      updateEvent.mutate({ id: event.id, input }, { onSuccess: () => { ack(event.id); onClose(); } });
     } else {
-      createEvent.mutate(input, { onSuccess: onClose });
+      createEvent.mutate(input, { onSuccess: (newId) => { ack(newId); onClose(); } });
     }
   }
 
@@ -163,6 +180,8 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
         {placeCoords && (
           <KakaoMap markers={[{ id: 'selected', lat: placeCoords.lat, lng: placeCoords.lng }]} className={styles.mapPreview} />
         )}
+
+        <AckRoleSelect value={ackRole} onChange={setAckRole} />
 
         <button type="button" className={styles.submit} onClick={handleSubmit}>
           {event ? '저장하기' : '추가하기'}

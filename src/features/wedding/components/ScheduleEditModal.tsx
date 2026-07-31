@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
+import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useConsultNotes, useCreatePrepItem, usePrepItems, useUpdatePrepItem } from '../hooks/useWeddingData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import type { AckRole } from '@/shared/lib/schedule/types';
 import type { WeddingEventType } from '../types';
 import { EVENT_TYPES, eventTypeLabel } from './WeddingScheduleView';
 import styles from './ScheduleEditModal.module.css';
@@ -22,6 +25,8 @@ export interface ScheduleEditModalProps {
 // 함께 처리한다. 다른 챕터에 재사용하지 않는다.
 export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
+  const { data: myMembership } = useMyMembership(session?.user.id);
   const { data: items } = usePrepItems(workspaceId);
   const { data: consultNotes } = useConsultNotes(workspaceId);
   const createItem = useCreatePrepItem(workspaceId);
@@ -41,6 +46,12 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
   const [consultNoteIds, setConsultNoteIds] = useState<string[]>([]);
+  const [ackRole, setAckRole] = useState<AckRole>('partner');
+
+  useEffect(() => {
+    if (myMembership?.role === 'master') setAckRole('partner');
+    else if (myMembership?.role === 'partner') setAckRole('master');
+  }, [myMembership?.role]);
 
   useEffect(() => {
     const query = placeName.trim();
@@ -84,15 +95,24 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
   }
 
   function handleSubmit() {
-    if (!title.trim() || !placeName.trim() || !workspaceId) return;
+    const userId = session?.user.id;
+    if (!title.trim() || !placeName.trim() || !workspaceId || !userId) return;
     const schedule = { scheduledAt: new Date(`${date}T${time}:00`).toISOString(), location: placeName.trim(), eventType };
+
+    function ack(sourceId: string) {
+      createScheduleAck({ sourceType: 'wedding_schedule', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch(() => {});
+    }
+
     if (linkedItemId) {
-      updateItem.mutate({ id: linkedItemId, patch: { schedule, consultNoteIds } }, { onSuccess: onClose });
+      updateItem.mutate(
+        { id: linkedItemId, patch: { schedule, consultNoteIds } },
+        { onSuccess: () => { ack(linkedItemId); onClose(); } },
+      );
       return;
     }
     createItem.mutate(
       { workspaceId, title: title.trim(), category: '기타', assigneeId: null, schedule, consultNoteIds },
-      { onSuccess: onClose },
+      { onSuccess: (newId) => { ack(newId); onClose(); } },
     );
   }
 
@@ -211,6 +231,8 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
           ))}
           {(consultNotes ?? []).length === 0 && <p className={styles.hint}>등록된 상담노트가 없어요.</p>}
         </div>
+
+        <AckRoleSelect value={ackRole} onChange={setAckRole} />
 
         <button type="button" className={styles.submit} onClick={handleSubmit}>
           추가하기

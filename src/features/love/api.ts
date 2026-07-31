@@ -191,12 +191,17 @@ export interface CreateLovePlanInput {
   plannedAt: string; // ISO 8601
 }
 
-export async function createLovePlan(input: CreateLovePlanInput): Promise<void> {
-  const { error } = await supabase.from('love_plan').insert({
-    workspace_id: input.workspaceId,
-    title: input.title,
-    place_name: input.placeName ?? null,
-    planned_at: input.plannedAt,
-  });
+export async function createLovePlan(input: CreateLovePlanInput): Promise<string> {
+  const { data, error } = await supabase
+    .from('love_plan')
+    .insert({
+      workspace_id: input.workspaceId,
+      title: input.title,
+      place_name: input.placeName ?? null,
+      planned_at: input.plannedAt,
+    })
+    .select('id')
+    .single();
   if (error) throw error;
+  return data.id;
 }

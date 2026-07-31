@@ -2,10 +2,12 @@ import { Outlet } from 'react-router-dom';
 import { GlobalFooter } from '@/shared/components/layout/GlobalFooter';
 import { GlobalHeader } from '@/shared/components/layout/GlobalHeader';
 import { MobileTabBar } from '@/shared/components/layout/MobileTabBar';
+import { ExitToast } from '@/shared/components/ui/ExitToast';
 import { isMaster } from '@/shared/lib/rbac/permissions';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useCaptureBlurOnHidden } from '@/shared/lib/capture-guard/useCaptureBlurOnHidden';
 import { useBlockCaptureShortcuts } from '@/shared/lib/capture-guard/useBlockCaptureShortcuts';
+import { useExitOnBackPress } from '@/shared/lib/pwa/useExitOnBackPress';
 import styles from './AppLayout.module.css';
 
 // 알림 목록/안읽음 개수는 features/notifications의 react-query 훅(폴링)이 관리한다 — GlobalHeader에
@@ -16,6 +18,7 @@ export function AppLayout() {
   const { data: membership } = useMyMembership(session?.user.id);
   const isCaptureBlurred = useCaptureBlurOnHidden();
   useBlockCaptureShortcuts();
+  const showExitHint = useExitOnBackPress();
 
   return (
     <div className={isCaptureBlurred ? `${styles.shell} ${styles.captureBlurred}` : styles.shell}>
@@ -25,6 +28,7 @@ export function AppLayout() {
       </div>
       <GlobalFooter />
       <MobileTabBar />
+      <ExitToast visible={showExitHint} />
     </div>
   );
 }

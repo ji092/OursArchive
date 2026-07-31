@@ -126,20 +126,25 @@ export interface SaveCheckupInput {
   resultWeight?: number;
 }
 
-export async function createCheckup(workspaceId: string, input: SaveCheckupInput): Promise<void> {
-  const { error } = await supabase.from('checkup').insert({
-    workspace_id: workspaceId,
-    week_no: input.weekNo,
-    title: input.title,
-    hospital: input.hospital,
-    doctor: input.doctor,
-    scheduled_at: input.scheduledAt,
-    status: input.status,
-    note: input.note ?? null,
-    result_memo: input.resultMemo ?? null,
-    result_weight: input.resultWeight ?? null,
-  });
+export async function createCheckup(workspaceId: string, input: SaveCheckupInput): Promise<string> {
+  const { data, error } = await supabase
+    .from('checkup')
+    .insert({
+      workspace_id: workspaceId,
+      week_no: input.weekNo,
+      title: input.title,
+      hospital: input.hospital,
+      doctor: input.doctor,
+      scheduled_at: input.scheduledAt,
+      status: input.status,
+      note: input.note ?? null,
+      result_memo: input.resultMemo ?? null,
+      result_weight: input.resultWeight ?? null,
+    })
+    .select('id')
+    .single();
   if (error) throw error;
+  return data.id;
 }
 
 export async function updateCheckup(id: string, input: SaveCheckupInput): Promise<void> {
@@ -200,11 +205,14 @@ export interface SaveEventInput {
   location: string;
 }
 
-export async function createEvent(workspaceId: string, input: SaveEventInput): Promise<void> {
-  const { error } = await supabase
+export async function createEvent(workspaceId: string, input: SaveEventInput): Promise<string> {
+  const { data, error } = await supabase
     .from('pregnancy_event')
-    .insert({ workspace_id: workspaceId, title: input.title, event_type: input.eventType, scheduled_at: input.scheduledAt, location: input.location });
+    .insert({ workspace_id: workspaceId, title: input.title, event_type: input.eventType, scheduled_at: input.scheduledAt, location: input.location })
+    .select('id')
+    .single();
   if (error) throw error;
+  return data.id;
 }
 
 export async function updateEvent(id: string, input: SaveEventInput): Promise<void> {

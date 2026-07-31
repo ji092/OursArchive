@@ -1,0 +1,78 @@
+.wrap {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.comment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
+.author {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+}
+
+.delete {
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.submit {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
+import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { usePregnancyActionsHost } from '../actionsPortal';
 import { useCheckups, useCreateCheckup, useDeleteCheckup, useUpdateCheckup } from '../hooks/usePregnancyData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import type { AckRole } from '@/shared/lib/schedule/types';
 import type { Checkup } from '../types';
 import styles from './PregnancyCheckupView.module.css';
 
@@ -14,6 +18,8 @@ function formatCheckupDate(iso: string): string {
 // "+ 추가" 팝업과 동일하게 actionsPortal로 페이지 헤더에 버튼을 꽂는다.
 export function PregnancyCheckupView() {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
+  const { data: myMembership } = useMyMembership(session?.user.id);
   const { data: checkups } = useCheckups(workspaceId);
   const createCheckup = useCreateCheckup(workspaceId);
   const updateCheckup = useUpdateCheckup(workspaceId);
@@ -31,6 +37,12 @@ export function PregnancyCheckupView() {
   const [note, setNote] = useState('');
   const [resultMemo, setResultMemo] = useState('');
   const [resultWeight, setResultWeight] = useState('');
+  const [ackRole, setAckRole] = useState<AckRole>('partner');
+
+  useEffect(() => {
+    if (myMembership?.role === 'master') setAckRole('partner');
+    else if (myMembership?.role === 'partner') setAckRole('master');
+  }, [myMembership?.role]);
 
   const nextCheckup = checkups?.find((c) => c.status === 'upcoming');
 
@@ -63,7 +75,8 @@ export function PregnancyCheckupView() {
   }
 
   function handleSubmit() {
-    if (!title.trim() || !hospital.trim()) return;
+    const userId = session?.user.id;
+    if (!title.trim() || !hospital.trim() || !workspaceId || !userId) return;
     const input = {
       weekNo,
       title: title.trim(),
@@ -75,10 +88,15 @@ export function PregnancyCheckupView() {
       resultMemo: resultMemo.trim() || undefined,
       resultWeight: resultWeight ? Number(resultWeight) : undefined,
     };
+
+    function ack(sourceId: string) {
+      createScheduleAck({ sourceType: 'pregnancy_checkup', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch(() => {});
+    }
+
     if (editing === 'new') {
-      createCheckup.mutate(input, { onSuccess: () => setEditing(null) });
+      createCheckup.mutate(input, { onSuccess: (newId) => { ack(newId); setEditing(null); } });
     } else if (editing) {
-      updateCheckup.mutate({ id: editing.id, input }, { onSuccess: () => setEditing(null) });
+      updateCheckup.mutate({ id: editing.id, input }, { onSuccess: () => { ack(editing.id); setEditing(null); } });
     }
   }
 
@@ -124,6 +142,17 @@ export function PregnancyCheckupView() {
             <input className={styles.input} placeholder="방문 전 안내 (예: 성별 확인 가능)" value={note} onChange={(e) => setNote(e.target.value)} />
             <input className={styles.input} placeholder="소견 메모" value={resultMemo} onChange={(e) => setResultMemo(e.target.value)} />
             <input type="number" className={styles.input} placeholder="측정 체중(kg)" value={resultWeight} onChange={(e) => setResultWeight(e.target.value)} />
+
+            <AckRoleSelect value={ackRole} onChange={setAckRole} />
+
+            {editing !== 'new' && workspaceId && (
+              <ScheduleCommentPanel
+                sourceType="pregnancy_checkup"
+                sourceId={editing.id}
+                workspaceId={workspaceId}
+                currentUserId={session?.user.id}
+              />
+            )}
 
             <div className={styles.formRow}>
               <button type="button" className={styles.submit} onClick={handleSubmit}>

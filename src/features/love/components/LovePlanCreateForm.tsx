@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import type { AckRole } from '@/shared/lib/schedule/types';
 import { useCreateLovePlan } from '../hooks/useCreateLovePlan';
 import styles from './LoveCreateForm.module.css';
 
@@ -41,6 +44,12 @@ export function LovePlanCreateForm() {
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
   const [errors, setErrors] = useState<{ body?: string; placeName?: string }>({});
+  const [ackRole, setAckRole] = useState<AckRole>('partner');
+
+  useEffect(() => {
+    if (membership?.role === 'master') setAckRole('partner');
+    else if (membership?.role === 'partner') setAckRole('master');
+  }, [membership?.role]);
 
   useEffect(() => {
     const query = placeName.trim();
@@ -68,7 +77,7 @@ export function LovePlanCreateForm() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!workspaceId) return;
+    if (!workspaceId || !userId) return;
 
     const nextErrors: typeof errors = {};
     if (!body.trim()) nextErrors.body = '내용을 입력해주세요.';
@@ -80,7 +89,12 @@ export function LovePlanCreateForm() {
 
     createPlan(
       { workspaceId, title: body.trim(), placeName: placeName.trim(), plannedAt },
-      { onSuccess: () => navigate('/love/calendar') },
+      {
+        onSuccess: (newId) => {
+          createScheduleAck({ sourceType: 'love_plan', sourceId: newId, workspaceId, createdBy: userId, ackRole }).catch(() => {});
+          navigate('/love/calendar');
+        },
+      },
     );
   }
 
@@ -161,6 +175,8 @@ export function LovePlanCreateForm() {
         </div>
         {errors.placeName && <span className={styles.errorText}>{errors.placeName}</span>}
       </div>
+
+      <AckRoleSelect value={ackRole} onChange={setAckRole} />
 
       <button type="submit" className={styles.submit} disabled={isPending}>
         {isPending ? '저장 중…' : '일정 저장하기'}

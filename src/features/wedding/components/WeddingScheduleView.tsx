@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
+import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { formatWon } from '../deriveStats';
 import type { PrepItem, WeddingEventType } from '../types';
 import { ScheduleEditModal } from './ScheduleEditModal';
@@ -37,6 +38,7 @@ function buildMonthCells(year: number, month: number): (number | null)[] {
 
 export function WeddingScheduleView() {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
   const { data: items } = usePrepItems(workspaceId);
   const { data: consultNotes } = useConsultNotes(workspaceId);
   const actionsHost = useWeddingActionsHost();
@@ -258,6 +260,15 @@ export function WeddingScheduleView() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {workspaceId && (
+              <ScheduleCommentPanel
+                sourceType="wedding_schedule"
+                sourceId={selectedItem.id}
+                workspaceId={workspaceId}
+                currentUserId={session?.user.id}
+              />
             )}
           </div>
         )}

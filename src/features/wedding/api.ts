@@ -90,8 +90,8 @@ export interface CreatePrepItemInput {
   consultNoteIds?: string[];
 }
 
-export async function createPrepItem(input: CreatePrepItemInput): Promise<void> {
-  const { error } = await supabase.rpc('create_prep_item', {
+export async function createPrepItem(input: CreatePrepItemInput): Promise<string> {
+  const { data, error } = await supabase.rpc('create_prep_item', {
     ws: input.workspaceId,
     p_title: input.title,
     p_category: input.category,
@@ -102,6 +102,7 @@ export async function createPrepItem(input: CreatePrepItemInput): Promise<void> 
     p_consult_note_ids: input.consultNoteIds ?? [],
   });
   if (error) throw error;
+  return data as string;
 }
 
 export interface UpdatePrepItemInput {
