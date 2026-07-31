@@ -100,11 +100,6 @@
   object-fit: contain;
 }
 
-.cellMarkerCount {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
 .dayPanel {
   margin-top: 20px;
   padding: 16px;
