@@ -142,6 +142,68 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* 일정 한 줄: 좌측은 상세(댓글) 토글 버튼, 우측은 삭제 버튼 — 버튼 중첩이 불가능해서 행으로 감쌌다 */
+.dayPanelPlanRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.planDelete {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.planDelete:hover {
+  background: var(--color-bg-soft);
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.confirmText {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.confirmDelete,
+.confirmCancel {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.confirmDelete {
+  border: none;
+  background: #d9534f;
+  color: #fff;
+}
+
+.confirmDelete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmCancel {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
 .dayPanelPlanItem {
   display: flex;
   align-items: flex-start;

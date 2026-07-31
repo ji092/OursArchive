@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
+import { useDeleteLovePlan } from '../hooks/useCreateLovePlan';
 import { useLovePlans } from '../hooks/useLovePlans';
 import { useLoveRecords } from '../hooks/useLoveRecords';
 import { LoveRecordDetailModalController } from './LoveRecordDetailModalController';
@@ -34,6 +35,17 @@ export function LoveCalendarView() {
   const [month, setMonth] = useState(today.getMonth()); // 0-11
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const deletePlan = useDeleteLovePlan(membership?.workspaceId);
+
+  function handleDeletePlan(planId: string) {
+    deletePlan.mutate(planId, {
+      onSuccess: () => {
+        setConfirmingId(null);
+        setSelectedPlanId((prev) => (prev === planId ? null : prev));
+      },
+    });
+  }
 
   const recordsByDate = useMemo(() => {
     const map = new Map<string, typeof records>();
@@ -70,6 +82,7 @@ export function LoveCalendarView() {
     setMonth(next.getMonth());
     setSelectedDateKey(null);
     setSelectedPlanId(null);
+    setConfirmingId(null);
   }
 
   const selectedRecords = selectedDateKey ? (recordsByDate.get(selectedDateKey) ?? []) : [];
@@ -113,6 +126,7 @@ export function LoveCalendarView() {
               onClick={() => {
                 setSelectedDateKey(isSelected ? null : dateKey);
                 setSelectedPlanId(null);
+                setConfirmingId(null);
               }}
             >
               <span
@@ -142,21 +156,47 @@ export function LoveCalendarView() {
           {selectedPlans.length > 0 && (
             <div className={styles.dayPanelPlans}>
               {selectedPlans.map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  className={styles.dayPanelPlanItem}
-                  onClick={() => setSelectedPlanId((prev) => (prev === plan.id ? null : plan.id))}
-                >
-                  <span className={styles.dayPanelPlanDot} />
-                  <div>
-                    <p className={styles.dayPanelItemBody}>{plan.title}</p>
-                    <p className={styles.dayPanelItemPlace}>
-                      🕐 {formatTime(plan.plannedAtFull)}
-                      {plan.placeName ? ` · 📍 ${plan.placeName}` : ''}
-                    </p>
-                  </div>
-                </button>
+                <div key={plan.id} className={styles.dayPanelPlanRow}>
+                  <button
+                    type="button"
+                    className={styles.dayPanelPlanItem}
+                    onClick={() => setSelectedPlanId((prev) => (prev === plan.id ? null : plan.id))}
+                  >
+                    <span className={styles.dayPanelPlanDot} />
+                    <div>
+                      <p className={styles.dayPanelItemBody}>{plan.title}</p>
+                      <p className={styles.dayPanelItemPlace}>
+                        🕐 {formatTime(plan.plannedAtFull)}
+                        {plan.placeName ? ` · 📍 ${plan.placeName}` : ''}
+                      </p>
+                    </div>
+                  </button>
+                  {confirmingId === plan.id ? (
+                    <span className={styles.confirmRow}>
+                      <span className={styles.confirmText}>삭제할까요?</span>
+                      <button
+                        type="button"
+                        className={styles.confirmDelete}
+                        disabled={deletePlan.isPending}
+                        onClick={() => handleDeletePlan(plan.id)}
+                      >
+                        삭제
+                      </button>
+                      <button type="button" className={styles.confirmCancel} onClick={() => setConfirmingId(null)}>
+                        취소
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.planDelete}
+                      onClick={() => setConfirmingId(plan.id)}
+                      aria-label={`${plan.title} 일정 삭제`}
+                    >
+                      🗑
+                    </button>
+                  )}
+                </div>
               ))}
               {selectedPlanId && membership?.workspaceId && (
                 <ScheduleCommentPanel

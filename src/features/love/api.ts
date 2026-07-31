@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
+import { deleteScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
 import { deleteContentPhotos, resolveContentPhotoUrls, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
 import type { LovePlan, LoveRecord, LoveRecordComment } from './types';
 
@@ -189,6 +190,14 @@ export interface CreateLovePlanInput {
   title: string;
   placeName?: string;
   plannedAt: string; // ISO 8601
+}
+
+// 일정 행과 함께 확인 요청(schedule_ack)·일정 댓글도 정리한다 — 안 그러면 지운 일정에 대해
+// 리마인더 푸시가 계속 나간다 (deleteScheduleAck 주석 참조).
+export async function deleteLovePlan(id: string): Promise<void> {
+  await deleteScheduleAck('love_plan', id);
+  const { error } = await supabase.from('love_plan').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function createLovePlan(input: CreateLovePlanInput): Promise<string> {
