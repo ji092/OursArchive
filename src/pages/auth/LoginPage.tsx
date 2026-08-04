@@ -102,6 +102,8 @@ function JoinRequestCard({ userId }: { userId: string }) {
   const mutation = useMutation({
     mutationFn: () => submitJoinRequest(userId, message.trim()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: myMembershipQueryKey(userId) }),
+    // 아래에서 mutation.isError로 폼 안에 직접 표시하므로 전역 토스트는 끈다(중복 안내 방지).
+    meta: { silentError: true },
   });
 
   return (
