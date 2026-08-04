@@ -7,6 +7,7 @@ import { usePregnancyActionsHost } from '../actionsPortal';
 import { useCheckups, useCreateCheckup, useDeleteCheckup, useUpdateCheckup } from '../hooks/usePregnancyData';
 import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import type { AckRole } from '@/shared/lib/schedule/types';
 import type { Checkup } from '../types';
 import styles from './PregnancyCheckupView.module.css';
@@ -91,7 +92,7 @@ export function PregnancyCheckupView() {
     };
 
     function ack(sourceId: string) {
-      createScheduleAck({ sourceType: 'pregnancy_checkup', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch(() => {});
+      createScheduleAck({ sourceType: 'pregnancy_checkup', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch((cause) => reportFailure('일정은 저장됐지만 확인 알림 설정에 실패했어요. 일정을 수정해 확인 대상을 다시 지정해주세요.', cause));
     }
 
     if (editing === 'new') {

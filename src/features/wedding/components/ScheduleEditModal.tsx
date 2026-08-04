@@ -6,6 +6,7 @@ import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/
 import { useConsultNotes, useCreatePrepItem, usePrepItems, useUpdatePrepItem } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import type { AckRole } from '@/shared/lib/schedule/types';
 import type { WeddingEventType } from '../types';
 import { EVENT_TYPES, eventTypeLabel } from './WeddingScheduleView';
@@ -101,7 +102,7 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
     const schedule = { scheduledAt: new Date(`${date}T${time}:00`).toISOString(), location: placeName.trim(), eventType };
 
     function ack(sourceId: string) {
-      createScheduleAck({ sourceType: 'wedding_schedule', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch(() => {});
+      createScheduleAck({ sourceType: 'wedding_schedule', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch((cause) => reportFailure('일정은 저장됐지만 확인 알림 설정에 실패했어요. 일정을 수정해 확인 대상을 다시 지정해주세요.', cause));
     }
 
     if (linkedItemId) {

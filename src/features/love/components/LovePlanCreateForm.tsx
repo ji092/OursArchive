@@ -5,6 +5,7 @@ import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import type { AckRole } from '@/shared/lib/schedule/types';
 import { useCreateLovePlan } from '../hooks/useCreateLovePlan';
 import styles from './LoveCreateForm.module.css';
@@ -92,7 +93,7 @@ export function LovePlanCreateForm() {
       { workspaceId, title: body.trim(), placeName: placeName.trim(), plannedAt },
       {
         onSuccess: (newId) => {
-          createScheduleAck({ sourceType: 'love_plan', sourceId: newId, workspaceId, createdBy: userId, ackRole }).catch(() => {});
+          createScheduleAck({ sourceType: 'love_plan', sourceId: newId, workspaceId, createdBy: userId, ackRole }).catch((cause) => reportFailure('일정은 저장됐지만 확인 알림 설정에 실패했어요. 일정을 수정해 확인 대상을 다시 지정해주세요.', cause));
           navigate('/love/calendar');
         },
       },
