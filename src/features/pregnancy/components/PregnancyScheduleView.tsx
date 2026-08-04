@@ -182,7 +182,7 @@ export function PregnancyScheduleView() {
                 {selectedDateDiaries.map((diary) => (
                   <Link key={diary.id} to={`/pregnancy/album?record=${diary.id}`} className={styles.albumItem}>
                     <span className={styles.albumThumbWrap}>
-                      <RecordThumbnail gradient={diary.gradient} alt={diary.title} />
+                      <RecordThumbnail imageUrl={diary.imageUrl} gradient={diary.gradient} alt={diary.title} />
                     </span>
                     <span className={styles.albumInfo}>
                       <span className={styles.albumTitle}>{diary.title}</span>

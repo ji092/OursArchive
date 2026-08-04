@@ -9,7 +9,10 @@ export interface PregnancyDiary {
   isUltrasound: boolean;
   recordedAt: string; // ISO date
   visibility: Visibility;
-  gradient: string; // R2 연동 전 임시 표시용 (love 도메인과 동일 패턴)
+  gradient: string; // imageUrl이 없을 때 자리를 채우는 임시 배경 (love 도메인과 동일 패턴)
+  // 사진 URL. 조회 경로가 아직 diary_photo를 읽지 않아 항상 undefined다.
+  // RecordThumbnail이 있으면 img, 없으면 gradient를 그린다.
+  imageUrl?: string;
   comments: { id: string; authorName: string; body: string }[];
 }
 

@@ -28,7 +28,7 @@ export function PregnancyDiaryModalController() {
       authorName={`${diary.weekNo}주차 성장 일기`}
       recordedAtLabel={formatRecordedAt(diary.recordedAt)}
       body={diary.title + '\n\n' + diary.body}
-      photos={[{ gradient: diary.gradient }]}
+      photos={[{ gradient: diary.gradient, imageUrl: diary.imageUrl }]}
       comments={diary.comments}
       onClose={() => setSearchParams({})}
       currentAuthorName={currentAuthorName}

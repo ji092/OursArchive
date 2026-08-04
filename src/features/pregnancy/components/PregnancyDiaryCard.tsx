@@ -9,7 +9,7 @@ export function PregnancyDiaryCard({ diary }: { diary: PregnancyDiary }) {
   return (
     <button type="button" className={styles.card} onClick={() => setSearchParams({ record: diary.id })}>
       <div className={styles.thumbWrap}>
-        <RecordThumbnail gradient={diary.gradient} alt={diary.title} className={styles.thumb} />
+        <RecordThumbnail imageUrl={diary.imageUrl} gradient={diary.gradient} alt={diary.title} className={styles.thumb} />
         <span className={styles.weekBadge}>{diary.weekNo}주차</span>
         {diary.isUltrasound && <span className={styles.ultrasoundBadge}>초음파</span>}
       </div>
