@@ -3,7 +3,7 @@
 // notification 행도 만들어준다 — 여기선 그 결과로 실제 web-push만 보낸다.
 // 벤더 자격증명(VAPID_PRIVATE_KEY, SUPABASE_SERVICE_ROLE_KEY)은 Edge Function 환경변수로만
 // 존재한다 (CLAUDE.md — 벤더 키는 서버측에만).
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3';
 
 const DEEP_LINKS: Record<string, string> = {
@@ -21,12 +21,80 @@ interface ReminderRow {
   source_id: string;
 }
 
+// 실패가 계속되면 15분마다 알림이 쌓이므로, 같은 장애에 대해서는 이 간격 안에 한 번만 남긴다.
+const FAILURE_NOTICE_WINDOW_HOURS = 6;
+const FAILURE_SOURCE_TABLE = 'schedule_reminder_tick';
+
+// tick 실패를 Master의 알림 목록에 남긴다. 실패를 알리다가 또 실패할 수 있으므로
+// 이 함수 자체는 절대 throw하지 않는다 — 원래 오류 응답을 가리면 안 된다.
+async function recordTickFailure(supabase: SupabaseClient, message: string): Promise<void> {
+  try {
+    const since = new Date(Date.now() - FAILURE_NOTICE_WINDOW_HOURS * 3600_000).toISOString();
+    const { data: recent } = await supabase
+      .from('notification')
+      .select('id')
+      .eq('source_table', FAILURE_SOURCE_TABLE)
+      .gte('created_at', since)
+      .limit(1);
+    if (recent && recent.length > 0) return;
+
+    const { data: masters } = await supabase
+      .from('membership')
+      .select('workspace_id, user_id')
+      .eq('role', 'master')
+      .eq('status', 'active');
+    if (!masters || masters.length === 0) return;
+
+    await supabase.from('notification').insert(
+      masters.map((m: { workspace_id: string; user_id: string }) => ({
+        workspace_id: m.workspace_id,
+        recipient_user_id: m.user_id,
+        type: 'system_alert',
+        title: '일정 알림 발송이 실패하고 있어요',
+        meta: message.slice(0, 500),
+        source_table: FAILURE_SOURCE_TABLE,
+        source_id: null,
+      })),
+    );
+  } catch (_err) {
+    // 알림 남기기까지 실패하면 더 할 수 있는 게 없다. 로그만 남기고 원래 오류를 그대로 반환한다.
+    console.error('[tick] 실패 알림을 남기지 못했습니다', _err);
+  }
+}
+
+// 서버 전용 키를 고른다.
+//
+// 2026-08-04: 프로젝트가 Supabase의 새 API 키 체계로 넘어가면서 SUPABASE_SERVICE_ROLE_KEY가
+// Deprecated로 표시됐고, 그 레거시 JWT로 PostgREST에 붙으면 "JWT issued at future"로 거부된다.
+// (재배포 직후 첫 tick인 2026-08-04 11:30부터 모든 호출이 실패했다.)
+// 새 체계에서는 sb_secret_... 형식 키를 쓰고 검증은 JWKS 기반으로 바뀐다.
+//
+// 플랫폼이 주입하는 이름이 SUPABASE_SECRET_KEYS(복수)라 값이 목록일 수 있어, 첫 번째 항목만
+// 취한다. 레거시 키는 마지막 폴백으로 남겨둔다 — 다른 프로젝트나 롤백 상황에서도 동작하도록.
+function resolveServiceKey(): string {
+  const raw =
+    Deno.env.get('SUPABASE_SECRET_KEY') ??
+    Deno.env.get('SUPABASE_SECRET_KEYS') ??
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!raw) throw new Error('서버 전용 키가 환경변수에 없습니다');
+
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('[')) {
+    const list = JSON.parse(trimmed) as unknown[];
+    const first = list.find((v) => typeof v === 'string' && v.length > 0);
+    if (typeof first === 'string') return first;
+    throw new Error('SUPABASE_SECRET_KEYS 목록이 비어 있습니다');
+  }
+  // 쉼표로 나열된 형태도 대비한다. 단일 값이면 split 결과가 그대로 하나다.
+  return trimmed.split(',')[0].trim();
+}
+
 Deno.serve(async (req) => {
   if (req.headers.get('Authorization') !== `Bearer ${Deno.env.get('SCHEDULE_REMINDER_SECRET')}`) {
     return new Response('unauthorized', { status: 401 });
   }
 
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, resolveServiceKey());
 
   webpush.setVapidDetails(
     Deno.env.get('VAPID_SUBJECT') ?? 'mailto:noreply@ours-archive.app',
@@ -42,7 +110,16 @@ Deno.serve(async (req) => {
     supabase.rpc('run_schedule_day_before'),
   ]);
   const error = escalation.error ?? dayBefore.error;
-  if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  if (error) {
+    // 여기서 그냥 500을 반환하면 아무 흔적이 남지 않는다. pg_cron은 실패한 http_post를
+    // 조용히 넘기고 다음 15분에 다시 부르기 때문에, 함수가 계속 죽어도 "알림이 안 오네"를
+    // 사람이 눈치챌 때까지 아무도 모른다 (2026-08-01 ambiguous column 오류로 5회 연속
+    // 500이 났을 때 실제로 그랬다).
+    // Master 앞으로 알림 행을 남겨 앱에서 보이게 한다. 푸시까지 보내지 않는 이유는,
+    // 실패가 반복되면 15분마다 푸시가 울려 그 자체가 문제가 되기 때문이다.
+    await recordTickFailure(supabase, error.message);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
 
   const rows = [
     ...((escalation.data ?? []) as ReminderRow[]),
