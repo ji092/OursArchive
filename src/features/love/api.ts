@@ -1,6 +1,6 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
 import { deleteScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
-import { deleteContentPhotos, resolveContentPhotoUrls, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
+import { deleteContentPhotos, resolveContentPhotoUrls, rollbackUploadedPhotos, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
 import type { LovePlan, LoveRecord, LoveRecordComment } from './types';
 
 // backend/policies/0002_love_policies.sql이 이미 love_record/love_photo/comment/love_plan을
@@ -93,9 +93,15 @@ export async function createLoveRecord(input: CreateLoveRecordInput): Promise<vo
     const { error: photoError } = await supabase
       .from('love_photo')
       .insert(paths.map((url, i) => ({ record_id: record.id, url, sort_order: i })));
-    if (photoError) throw photoError;
+    if (photoError) {
+      // Storage 업로드는 이미 끝났는데 DB 행만 실패한 상태다. 그냥 throw하면 아무도
+      // 참조하지 않는 파일이 Storage에 영구히 남는다(용량만 늘고 화면엔 안 보임).
+      await rollbackUploadedPhotos(paths);
+      throw photoError;
+    }
   }
 }
+
 
 export interface UpdateLoveRecordInput {
   id: string;
@@ -138,7 +144,11 @@ export async function updateLoveRecord(input: UpdateLoveRecordInput): Promise<vo
     const { error: photoError } = await supabase
       .from('love_photo')
       .insert(paths.map((url, i) => ({ record_id: input.id, url, sort_order: startOrder + i })));
-    if (photoError) throw photoError;
+    if (photoError) {
+      // 생성 경로와 같은 문제 — 업로드만 되고 DB 행이 없으면 고아 파일이 남는다.
+      await rollbackUploadedPhotos(paths);
+      throw photoError;
+    }
   }
 }
 
@@ -147,7 +157,8 @@ export async function deleteLoveRecord(id: string): Promise<void> {
   const { error } = await supabase.from('love_record').delete().eq('id', id);
   if (error) throw error;
   if (photos && photos.length > 0) {
-    await deleteContentPhotos(photos.map((p) => p.url)).catch(() => {});
+    // 레코드는 이미 지워졌다. 파일 삭제가 실패해도 되돌릴 대상이 없으므로 알리기만 한다.
+    await rollbackUploadedPhotos(photos.map((p) => p.url));
   }
 }
 

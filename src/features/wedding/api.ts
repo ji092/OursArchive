@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
-import { deleteContentPhotos, resolveContentPhotoUrls, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
+import { deleteContentPhotos, resolveContentPhotoUrls, rollbackUploadedPhotos, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
 import type { ConsultNote, Expense, Honeymoon, HoneymoonDay, PaymentMethod, PrepItem, VendorContact, WeddingEventType } from './types';
 
 // backend/policies/0012_wedding_rpc.sql의 create_prep_item/update_prep_item/save_honeymoon RPC를 쓴다 —
@@ -215,7 +215,11 @@ export async function createConsultNote(input: CreateConsultNoteInput): Promise<
     const { error: attachError } = await supabase
       .from('attachment')
       .insert(paths.map((path) => ({ workspace_id: input.workspaceId, file_url: path, file_type: 'image', link_type: 'consult', link_id: note.id })));
-    if (attachError) throw attachError;
+    if (attachError) {
+      // 업로드만 되고 DB 행이 없으면 아무도 참조하지 않는 파일이 Storage에 남는다.
+      await rollbackUploadedPhotos(paths);
+      throw attachError;
+    }
   }
 }
 
@@ -265,7 +269,11 @@ export async function updateConsultNote({ id, workspaceId, patch, removedPhotoPa
     const { error: attachError } = await supabase
       .from('attachment')
       .insert(paths.map((path) => ({ workspace_id: workspaceId, file_url: path, file_type: 'image', link_type: 'consult', link_id: id })));
-    if (attachError) throw attachError;
+    if (attachError) {
+      // 업로드만 되고 DB 행이 없으면 아무도 참조하지 않는 파일이 Storage에 남는다.
+      await rollbackUploadedPhotos(paths);
+      throw attachError;
+    }
   }
 }
 
@@ -349,7 +357,11 @@ export async function saveHoneymoonDayPhotos(
     const { error } = await supabase
       .from('honeymoon_day_photo')
       .insert(paths.map((url, i) => ({ day_id: dayId, url, sort_order: startOrder + i })));
-    if (error) throw error;
+    if (error) {
+      // 업로드만 되고 DB 행이 없으면 아무도 참조하지 않는 파일이 Storage에 남는다.
+      await rollbackUploadedPhotos(paths);
+      throw error;
+    }
   }
 }
 
