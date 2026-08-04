@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { IconCalendar } from '@/shared/components/ui/icons';
 import {
   computeBudgetSummary,
   computeCategoryProgress,
@@ -88,7 +89,7 @@ export function WeddingSummaryView() {
           <div className={styles.nextEvent}>
             <p className={styles.nextEventTitle}>{nextEvent.title}</p>
             <p className={styles.nextEventMeta}>{nextEvent.schedule.location}</p>
-            <p className={styles.nextEventMeta}>📅 {formatEventDate(nextEvent.schedule.scheduledAt)}</p>
+            <p className={styles.nextEventMeta}><IconCalendar /> {formatEventDate(nextEvent.schedule.scheduledAt)}</p>
           </div>
         ) : (
           <p className={styles.empty}>예정된 일정이 없어요.</p>

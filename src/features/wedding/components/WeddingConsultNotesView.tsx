@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
+import { IconPin } from '@/shared/components/ui/icons';
 import { createPortal } from 'react-dom';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
@@ -255,7 +256,7 @@ export function WeddingConsultNotesView() {
                   {placeSuggestions.map((place) => (
                     <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
                       <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                        <span className={styles.placeResultName}>📍 {place.placeName}</span>
+                        <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
                         <span className={styles.placeResultAddress}>{place.addressName}</span>
                       </button>
                     </li>
@@ -263,7 +264,7 @@ export function WeddingConsultNotesView() {
                 </ul>
               )}
             </div>
-            {address && <p className={styles.addressText}>📍 {address}</p>}
+            {address && <p className={styles.addressText}><IconPin /> {address}</p>}
             {coords && <KakaoMap markers={[{ id: 'selected', lat: coords.lat, lng: coords.lng }]} className={styles.mapPreview} />}
 
             <textarea className={styles.textarea} placeholder="핵심 메모 (줄바꿈으로 구분)" value={keyMemos} onChange={(e) => setKeyMemos(e.target.value)} />

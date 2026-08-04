@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IconComment, IconPin } from '@/shared/components/ui/icons';
 import { useSearchParams } from 'react-router-dom';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
 import type { LoveRecord } from '../types';
@@ -30,7 +31,7 @@ export function LoveFeedCard({ record }: { record: LoveRecord }) {
         <span className={styles.avatar} aria-hidden="true" />
         <span className={styles.headerText}>
           <span className={styles.author}>{record.authorName}</span>
-          <span className={styles.place}>📍 {record.placeName}</span>
+          <span className={styles.place}><IconPin /> {record.placeName}</span>
         </span>
       </button>
 
@@ -76,7 +77,7 @@ export function LoveFeedCard({ record }: { record: LoveRecord }) {
       <button type="button" className={styles.body} onClick={openDetail}>
         <p className={styles.bodyText}>{record.body}</p>
         <p className={styles.footer}>
-          💬 댓글 {record.comments.length} · {formatRecordedAt(record.recordedAt)}
+          <IconComment /> 댓글 {record.comments.length} · {formatRecordedAt(record.recordedAt)}
         </p>
       </button>
     </article>

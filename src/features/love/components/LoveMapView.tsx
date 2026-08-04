@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { IconPin } from '@/shared/components/ui/icons';
 import { useSearchParams } from 'react-router-dom';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
@@ -78,7 +79,7 @@ export function LoveMapView() {
               />
               <span className={styles.placeInfo}>
                 <span className={styles.placeBody}>{record.body}</span>
-                <span className={styles.placeName}>📍 {record.placeName}</span>
+                <span className={styles.placeName}><IconPin /> {record.placeName}</span>
               </span>
             </button>
           ))}
@@ -90,7 +91,7 @@ export function LoveMapView() {
   );
 }
 
-// 실제로는 NCP Geocoding으로 좌표→행정구역을 얻지만, 목데이터 단계에서는 장소명 키워드로 대략 묶는다.
+// 좌표→행정구역 변환(NCP Geocoding)을 붙이기 전까지는 장소명 키워드로 대략 묶는다.
 function regionOf(placeName: string): string {
   if (placeName.includes('제주') || placeName.includes('함덕') || placeName.includes('애월')) return '제주도';
   return '서울·수도권';

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IconPencil } from '@/shared/components/ui/icons';
 import { computeCategoryBudget, formatWon } from '../deriveStats';
 import { useHoneymoon, usePrepItems, useUpdateHoneymoon } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
@@ -85,7 +86,7 @@ export function WeddingHoneymoonView() {
             {honeymoon.destination} · {nights}박 {nights + 1}일
           </p>
           <button type="button" className={styles.editButton} onClick={editing ? saveEdit : startEdit}>
-            {editing ? '저장' : '✏️'}
+            {editing ? '저장' : <IconPencil />}
           </button>
         </div>
 

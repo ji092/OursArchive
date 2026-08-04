@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { IconPin } from '@/shared/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
@@ -165,7 +166,7 @@ export function LovePlanCreateForm() {
               {placeSuggestions.map((place) => (
                 <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
                   <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}>📍 {place.placeName}</span>
+                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
                     <span className={styles.placeResultAddress}>{place.addressName}</span>
                   </button>
                 </li>

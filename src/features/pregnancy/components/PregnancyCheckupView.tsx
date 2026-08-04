@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { IconCalendar, IconNote } from '@/shared/components/ui/icons';
 import { createPortal } from 'react-dom';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
@@ -183,8 +184,8 @@ export function PregnancyCheckupView() {
             <p className={styles.nextCheckupMeta}>
               {nextCheckup.hospital} · {nextCheckup.doctor}
             </p>
-            <p className={styles.nextCheckupMeta}>📅 {formatCheckupDate(nextCheckup.scheduledAt)}</p>
-            {nextCheckup.note && <p className={styles.nextCheckupNote}>📌 {nextCheckup.note}</p>}
+            <p className={styles.nextCheckupMeta}><IconCalendar /> {formatCheckupDate(nextCheckup.scheduledAt)}</p>
+            {nextCheckup.note && <p className={styles.nextCheckupNote}><IconNote /> {nextCheckup.note}</p>}
           </div>
         ) : (
           <p className={styles.empty}>예정된 검진이 없어요.</p>

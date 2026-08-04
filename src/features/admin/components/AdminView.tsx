@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { IconTrash } from '@/shared/components/ui/icons';
 import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import type { WorkspaceSettings } from '@/shared/lib/workspace/workspaceSettingsApi';
 import { useApproveJoinRequest, useJoinRequests, useRejectJoinRequest } from '../hooks/useJoinRequests';
@@ -139,7 +140,7 @@ export function AdminView() {
             )}
             {member.role !== 'master' && (
               <button type="button" className={styles.removeButton} onClick={() => removeMember.mutate(member.id)} aria-label="내보내기">
-                🗑
+                <IconTrash />
               </button>
             )}
           </div>

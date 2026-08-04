@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IconBulb } from '@/shared/components/ui/icons';
 import { NavLink, Outlet } from 'react-router-dom';
 import { PregnancyActionsHostContext } from '@/features/pregnancy/actionsPortal';
 import { computeCurrentWeek, computeDday, computeProgressPercent } from '@/features/pregnancy/deriveStats';
@@ -57,7 +58,7 @@ export default function PregnancyLayout() {
         <section className={styles.thisWeek}>
           <p className={styles.thisWeekTitle}>THIS WEEK</p>
           <p className={styles.thisWeekBody}>{weekContent.development}</p>
-          <p className={styles.thisWeekTip}>💡 {weekContent.motherTip}</p>
+          <p className={styles.thisWeekTip}><IconBulb /> {weekContent.motherTip}</p>
         </section>
       )}
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { IconPin, IconTrash } from '@/shared/components/ui/icons';
 import { RecordThumbnail } from './RecordThumbnail';
 import { Watermark } from '@/shared/lib/capture-guard/Watermark';
 import { useSession } from '@/shared/hooks/useAuth';
@@ -84,7 +85,7 @@ export function RecordDetailModal({
             )}
             {onDelete && (
               <button type="button" className={styles.manageButton} onClick={onDelete} aria-label="삭제">
-                🗑 삭제
+                <IconTrash /> 삭제
               </button>
             )}
           </div>
@@ -127,7 +128,7 @@ export function RecordDetailModal({
         <div className={styles.content}>
           <div className={styles.meta}>
             <span className={styles.author}>{authorName}</span>
-            {placeName && <span className={styles.place}>📍 {placeName}</span>}
+            {placeName && <span className={styles.place}><IconPin /> {placeName}</span>}
             <span className={styles.date}>{recordedAtLabel}</span>
           </div>
           <p className={styles.body}>{body}</p>

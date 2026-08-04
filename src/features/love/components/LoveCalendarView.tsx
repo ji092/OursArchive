@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { IconClock, IconPin, IconTrash } from '@/shared/components/ui/icons';
 import { useSearchParams } from 'react-router-dom';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
@@ -166,8 +167,13 @@ export function LoveCalendarView() {
                     <div>
                       <p className={styles.dayPanelItemBody}>{plan.title}</p>
                       <p className={styles.dayPanelItemPlace}>
-                        🕐 {formatTime(plan.plannedAtFull)}
-                        {plan.placeName ? ` · 📍 ${plan.placeName}` : ''}
+                        <IconClock /> {formatTime(plan.plannedAtFull)}
+                        {plan.placeName ? (
+                          <>
+                            {' · '}
+                            <IconPin /> {plan.placeName}
+                          </>
+                        ) : null}
                       </p>
                     </div>
                   </button>
@@ -193,7 +199,7 @@ export function LoveCalendarView() {
                       onClick={() => setConfirmingId(plan.id)}
                       aria-label={`${plan.title} 일정 삭제`}
                     >
-                      🗑
+                      <IconTrash />
                     </button>
                   )}
                 </div>
@@ -220,7 +226,7 @@ export function LoveCalendarView() {
             >
               <span className={styles.dayPanelItemAuthor}>{record.authorName}</span>
               <span className={styles.dayPanelItemBody}>{record.body}</span>
-              <span className={styles.dayPanelItemPlace}>📍 {record.placeName}</span>
+              <span className={styles.dayPanelItemPlace}><IconPin /> {record.placeName}</span>
             </button>
           ))}
         </div>

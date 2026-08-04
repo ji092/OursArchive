@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { IconPin } from '@/shared/components/ui/icons';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
@@ -168,7 +169,7 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
               {placeSuggestions.map((place) => (
                 <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
                   <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}>📍 {place.placeName}</span>
+                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
                     <span className={styles.placeResultAddress}>{place.addressName}</span>
                   </button>
                 </li>
@@ -176,7 +177,7 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
             </ul>
           )}
         </div>
-        {placeAddress && <p className={styles.addressText}>📍 {placeAddress}</p>}
+        {placeAddress && <p className={styles.addressText}><IconPin /> {placeAddress}</p>}
         {placeCoords && (
           <KakaoMap markers={[{ id: 'selected', lat: placeCoords.lat, lng: placeCoords.lng }]} className={styles.mapPreview} />
         )}

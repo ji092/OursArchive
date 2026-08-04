@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { IconCalendar, IconPin } from '@/shared/components/ui/icons';
 import { LoveCalendarView } from '@/features/love/components/LoveCalendarView';
 import { useLoveRecords } from '@/features/love/hooks/useLoveRecords';
 import { useCheckups } from '@/features/pregnancy/hooks/usePregnancyData';
@@ -145,7 +146,7 @@ export default function DashboardPage() {
               {latestLoveRecord ? (
                 <>
                   <p className={styles.recentText}>{latestLoveRecord.body}</p>
-                  <p className={styles.recentMeta}>📍 {latestLoveRecord.placeName}</p>
+                  <p className={styles.recentMeta}><IconPin /> {latestLoveRecord.placeName}</p>
                 </>
               ) : (
                 <p className={styles.recentMeta}>아직 기록이 없어요.</p>
@@ -160,7 +161,7 @@ export default function DashboardPage() {
                 <>
                   <p className={styles.recentText}>{nextWeddingEvent.title}</p>
                   <p className={styles.recentMeta}>{nextWeddingEvent.schedule!.location}</p>
-                  <p className={styles.recentMeta}>📅 {formatDateTimeLabel(nextWeddingEvent.schedule!.scheduledAt)}</p>
+                  <p className={styles.recentMeta}><IconCalendar /> {formatDateTimeLabel(nextWeddingEvent.schedule!.scheduledAt)}</p>
                 </>
               ) : (
                 <p className={styles.recentMeta}>예정된 일정이 없어요.</p>
@@ -183,7 +184,7 @@ export default function DashboardPage() {
                   <p className={styles.recentMeta}>
                     {nextCheckup.hospital} · {nextCheckup.doctor}
                   </p>
-                  <p className={styles.recentMeta}>📅 {formatDateTimeLabel(nextCheckup.scheduledAt)}</p>
+                  <p className={styles.recentMeta}><IconCalendar /> {formatDateTimeLabel(nextCheckup.scheduledAt)}</p>
                   <p className={styles.recentMeta}>현재 {nextCheckup.weekNo}주</p>
                 </>
               ) : (

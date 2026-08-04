@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { IconPin, IconVideo } from '@/shared/components/ui/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
@@ -206,7 +207,7 @@ export function LoveCreateForm() {
             {photos.map((photo, index) => (
               <div key={photo.previewUrl} className={styles.photoItem}>
                 {photo.file.type.startsWith('video') ? (
-                  <span className={styles.videoBadge}>🎬 {photo.file.name}</span>
+                  <span className={styles.videoBadge}><IconVideo /> {photo.file.name}</span>
                 ) : (
                   <img src={photo.previewUrl} alt={`첨부 ${index + 1}`} className={styles.photoPreview} />
                 )}
@@ -286,7 +287,7 @@ export function LoveCreateForm() {
               {placeSuggestions.map((place) => (
                 <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
                   <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}>📍 {place.placeName}</span>
+                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
                     <span className={styles.placeResultAddress}>{place.addressName}</span>
                   </button>
                 </li>
