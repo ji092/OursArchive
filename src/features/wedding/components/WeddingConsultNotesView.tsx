@@ -1,6 +1,7 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { IconPin } from '@/shared/components/ui/icons';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
 import { useWeddingActionsHost } from '../actionsPortal';
@@ -41,6 +42,23 @@ export function WeddingConsultNotesView() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  // 달력(연애/결혼/임신)에서 상담 일정을 누르면 ?note=<id>로 들어온다 — 해당 노트를 바로 연다.
+  // 모달은 라우트가 아니라 쿼리 파라미터로 연다는 규칙(CLAUDE.md)을 그대로 따른다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedNoteId = searchParams.get('note');
+  const openedNoteIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!requestedNoteId) {
+      openedNoteIdRef.current = null;
+      return;
+    }
+    if (openedNoteIdRef.current === requestedNoteId) return;
+    const target = (notes ?? []).find((note) => note.id === requestedNoteId);
+    if (!target) return; // 아직 로딩 중이거나 접근 권한이 없는 노트 — 목록만 보여준다
+    openedNoteIdRef.current = requestedNoteId;
+    openEdit(target);
+  }, [requestedNoteId, notes]);
 
   useEffect(() => {
     const query = placeName.trim();
@@ -107,6 +125,11 @@ export function WeddingConsultNotesView() {
   function closeForm() {
     setEditingNote(null);
     newPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    if (searchParams.has('note')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('note');
+      setSearchParams(next, { replace: true });
+    }
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {

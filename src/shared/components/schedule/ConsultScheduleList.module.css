@@ -1,0 +1,60 @@
+.wrap {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.badgeScheduled,
+.badgeDone {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--color-border);
+}
+
+.badgeDone {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vendor {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.type {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.address {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

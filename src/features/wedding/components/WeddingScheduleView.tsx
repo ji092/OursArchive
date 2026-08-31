@@ -5,6 +5,9 @@ import { useWeddingActionsHost } from '../actionsPortal';
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
+import { ConsultScheduleList } from '@/shared/components/schedule/ConsultScheduleList';
+import { useConsultScheduleEvents } from '@/shared/hooks/useConsultScheduleEvents';
+import { groupConsultEventsByDate } from '@/shared/lib/schedule/consultScheduleEvents';
 import { formatWon } from '../deriveStats';
 import type { PrepItem, WeddingEventType } from '../types';
 import { ScheduleEditModal } from './ScheduleEditModal';
@@ -41,6 +44,7 @@ export function WeddingScheduleView() {
   const { session } = useSession();
   const { data: items } = usePrepItems(workspaceId);
   const { data: consultNotes } = useConsultNotes(workspaceId);
+  const { data: consultEvents } = useConsultScheduleEvents(workspaceId);
   const actionsHost = useWeddingActionsHost();
   const [showForm, setShowForm] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
@@ -64,11 +68,18 @@ export function WeddingScheduleView() {
     return map;
   }, [scheduled]);
 
+  // 상담노트의 방문 날짜도 같은 달력에 표시한다 — 노트를 쓰면 일정 탭에서 바로 보이도록
+  // (2026-08-31). 노트는 시각이 없는 날짜 단위 일정이라 타임라인이 아니라 날짜 패널에 붙인다.
+  const consultEventsByDate = useMemo(() => groupConsultEventsByDate(consultEvents ?? []), [consultEvents]);
+
   const year = calendarCursor.getFullYear();
   const month = calendarCursor.getMonth();
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
 
   const listItems = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : scheduled;
+  const selectedDateConsultEvents = selectedDate
+    ? (consultEventsByDate.get(selectedDate) ?? [])
+    : (consultEvents ?? []);
   const selectedItem = selectedItemId ? scheduled.find((item) => item.id === selectedItemId) : undefined;
   const selectedItemNotes = selectedItem
     ? (consultNotes ?? []).filter((note) => selectedItem.consultNoteIds.includes(note.id))
@@ -122,7 +133,7 @@ export function WeddingScheduleView() {
             {cells.map((day, index) => {
               if (day === null) return <span key={index} className={styles.dayCellEmpty} />;
               const key = dateKey(year, month, day);
-              const hasEvents = eventsByDate.has(key);
+              const hasEvents = eventsByDate.has(key) || consultEventsByDate.has(key);
               const isSelected = selectedDate === key;
               return (
                 <button
@@ -169,8 +180,11 @@ export function WeddingScheduleView() {
                 </span>
               </button>
             ))}
-            {listItems.length === 0 && <p className={styles.empty}>등록된 일정이 없어요.</p>}
+            {listItems.length === 0 && selectedDateConsultEvents.length === 0 && (
+              <p className={styles.empty}>등록된 일정이 없어요.</p>
+            )}
           </div>
+          <ConsultScheduleList events={selectedDateConsultEvents} title="상담 일정" />
         </div>
 
         {selectedItem && (

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
+import { consultScheduleEventsQueryKey } from '@/shared/hooks/useConsultScheduleEvents';
 import {
   createConsultNote,
   createExpense,
@@ -100,11 +101,21 @@ export function useConsultNotes(workspaceId: string | undefined) {
   });
 }
 
+// 상담노트는 결혼 챕터 목록(consultNotesQueryKey)과 세 챕터 달력이 함께 쓰는 일정 목록
+// (consultScheduleEventsQueryKey) 두 곳에서 읽힌다. 한쪽만 무효화하면 노트를 쓴 뒤 달력이
+// 옛 값을 계속 보여주므로 항상 같이 무효화한다.
+function invalidateConsultNoteQueries(queryClient: ReturnType<typeof useQueryClient>, workspaceId: string | undefined) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: consultNotesQueryKey(workspaceId ?? '') }),
+    queryClient.invalidateQueries({ queryKey: consultScheduleEventsQueryKey(workspaceId ?? '') }),
+  ]);
+}
+
 export function useCreateConsultNote(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createConsultNote,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: consultNotesQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateConsultNoteQueries(queryClient, workspaceId),
   });
 }
 
@@ -112,7 +123,7 @@ export function useUpdateConsultNote(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateConsultNote,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: consultNotesQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateConsultNoteQueries(queryClient, workspaceId),
   });
 }
 

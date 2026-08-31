@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
+import { ConsultScheduleList } from '@/shared/components/schedule/ConsultScheduleList';
+import { useConsultScheduleEvents } from '@/shared/hooks/useConsultScheduleEvents';
+import { groupConsultEventsByDate } from '@/shared/lib/schedule/consultScheduleEvents';
 import { usePregnancyActionsHost } from '../actionsPortal';
 import { useDeleteEvent, useDiaries, useEvents } from '../hooks/usePregnancyData';
 import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
@@ -40,6 +43,8 @@ export function PregnancyScheduleView() {
   const { session } = useSession();
   const { data: events } = useEvents(workspaceId);
   const { data: diaries } = useDiaries(workspaceId);
+  // 결혼 준비 탭의 상담노트도 같은 달력에 표시한다 (2026-08-31 — 챕터와 무관하게 모든 달력에 노출).
+  const { data: consultEvents } = useConsultScheduleEvents(workspaceId);
   const deleteEvent = useDeleteEvent(workspaceId);
   const actionsHost = usePregnancyActionsHost();
   const [showForm, setShowForm] = useState(false);
@@ -72,6 +77,8 @@ export function PregnancyScheduleView() {
   }, [diaries]);
   const albumDateKeys = useMemo(() => new Set(diariesByDate.keys()), [diariesByDate]);
 
+  const consultEventsByDate = useMemo(() => groupConsultEventsByDate(consultEvents ?? []), [consultEvents]);
+
   const year = calendarCursor.getFullYear();
   const month = calendarCursor.getMonth();
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
@@ -79,6 +86,7 @@ export function PregnancyScheduleView() {
   const listItems = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : scheduled;
   const selectedEvent = selectedEventId ? scheduled.find((event) => event.id === selectedEventId) : undefined;
   const selectedDateDiaries = selectedDate ? (diariesByDate.get(selectedDate) ?? []) : [];
+  const selectedDateConsultEvents = selectedDate ? (consultEventsByDate.get(selectedDate) ?? []) : (consultEvents ?? []);
 
   function handleSelectDate(day: number) {
     const key = dateKey(year, month, day);
@@ -129,7 +137,7 @@ export function PregnancyScheduleView() {
             {cells.map((day, index) => {
               if (day === null) return <span key={index} className={styles.dayCellEmpty} />;
               const key = dateKey(year, month, day);
-              const hasEvents = eventsByDate.has(key);
+              const hasEvents = eventsByDate.has(key) || consultEventsByDate.has(key);
               const hasAlbumPhoto = albumDateKeys.has(key);
               const isSelected = selectedDate === key;
               return (
@@ -172,8 +180,12 @@ export function PregnancyScheduleView() {
                 </span>
               </button>
             ))}
-            {listItems.length === 0 && <p className={styles.empty}>등록된 일정이 없어요.</p>}
+            {listItems.length === 0 && selectedDateConsultEvents.length === 0 && (
+              <p className={styles.empty}>등록된 일정이 없어요.</p>
+            )}
           </div>
+
+          <ConsultScheduleList events={selectedDateConsultEvents} />
 
           {selectedDateDiaries.length > 0 && (
             <div className={styles.albumSection}>
