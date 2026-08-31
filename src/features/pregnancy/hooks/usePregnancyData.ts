@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
+import { invalidateCalendarEvents } from '@/shared/hooks/useCalendarEvents';
 import {
   addDiaryComment,
   createCheckup,
@@ -25,6 +26,18 @@ import {
   type SaveEventInput,
   type SaveExpenseInput,
 } from '../api';
+
+// 검진·일정은 임신 챕터 화면과 모든 달력이 함께 쓰는 통합 일정 양쪽에서 읽힌다.
+function invalidateScheduleQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspaceId: string | undefined,
+  ownKey: readonly unknown[],
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ownKey }),
+    invalidateCalendarEvents(queryClient, workspaceId),
+  ]);
+}
 
 const diariesQueryKey = (workspaceId: string) => ['pregnancy-diaries', workspaceId] as const;
 const checkupsQueryKey = (workspaceId: string) => ['pregnancy-checkups', workspaceId] as const;
@@ -75,7 +88,7 @@ export function useCreateCheckup(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SaveCheckupInput) => createCheckup(workspaceId!, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: checkupsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateScheduleQueries(queryClient, workspaceId, checkupsQueryKey(workspaceId ?? '')),
   });
 }
 
@@ -83,7 +96,7 @@ export function useUpdateCheckup(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: SaveCheckupInput }) => updateCheckup(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: checkupsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateScheduleQueries(queryClient, workspaceId, checkupsQueryKey(workspaceId ?? '')),
   });
 }
 
@@ -91,7 +104,7 @@ export function useDeleteCheckup(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCheckup,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: checkupsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateScheduleQueries(queryClient, workspaceId, checkupsQueryKey(workspaceId ?? '')),
   });
 }
 
@@ -107,7 +120,7 @@ export function useCreateEvent(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SaveEventInput) => createEvent(workspaceId!, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateScheduleQueries(queryClient, workspaceId, eventsQueryKey(workspaceId ?? '')),
   });
 }
 
@@ -115,7 +128,7 @@ export function useUpdateEvent(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: SaveEventInput }) => updateEvent(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateScheduleQueries(queryClient, workspaceId, eventsQueryKey(workspaceId ?? '')),
   });
 }
 
@@ -123,7 +136,7 @@ export function useDeleteEvent(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteEvent,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidateScheduleQueries(queryClient, workspaceId, eventsQueryKey(workspaceId ?? '')),
   });
 }
 

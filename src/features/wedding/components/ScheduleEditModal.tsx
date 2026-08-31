@@ -3,12 +3,18 @@ import { IconPin } from '@/shared/components/ui/icons';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
-import { useConsultNotes, useCreatePrepItem, usePrepItems, useUpdatePrepItem } from '../hooks/useWeddingData';
+import {
+  useConsultNotes,
+  useCreatePrepItem,
+  useDeleteWeddingSchedule,
+  usePrepItems,
+  useUpdatePrepItem,
+} from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
 import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import type { AckRole } from '@/shared/lib/schedule/types';
-import type { WeddingEventType } from '../types';
+import type { PrepItem, WeddingEventType } from '../types';
 import { EVENT_TYPES, eventTypeLabel } from './WeddingScheduleView';
 import styles from './ScheduleEditModal.module.css';
 
@@ -20,12 +26,27 @@ const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: st
 ];
 
 export interface ScheduleEditModalProps {
+  item?: PrepItem; // 넘기면 수정 모드
   onClose: () => void;
 }
 
+// 로컬 시각 기준으로 <input type="date"/"time">에 넣을 값을 만든다 — ISO 문자열을 그대로 자르면
+// UTC라 저녁 일정이 하루 전으로 보인다.
+function toLocalDateValue(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function toLocalTimeValue(iso: string): string {
+  const date = new Date(iso);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 // 일정 탭 "+ 일정 추가" 팝업 — 체크리스트 항목과 연결(선택)/상담노트 다중 연결/장소 검색+지도+주소 표시를
-// 함께 처리한다. 다른 챕터에 재사용하지 않는다.
-export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
+// 함께 처리한다. item을 넘기면 같은 폼이 수정·삭제 모드로 동작한다(2026-08-31 추가 — 그전에는
+// 추가만 되고 고치거나 지울 방법이 없었다). 다른 챕터에 재사용하지 않는다.
+export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
+  const isEditing = !!item;
   const workspaceId = useCurrentWorkspaceId();
   const { session } = useSession();
   const { data: myMembership } = useMyMembership(session?.user.id);
@@ -33,21 +54,23 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
   const { data: consultNotes } = useConsultNotes(workspaceId);
   const createItem = useCreatePrepItem(workspaceId);
   const updateItem = useUpdatePrepItem(workspaceId);
+  const deleteSchedule = useDeleteWeddingSchedule(workspaceId);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const linkableItems = (items ?? []).filter((item) => item.checklist && !item.schedule);
 
   const [linkedItemId, setLinkedItemId] = useState('');
-  const [title, setTitle] = useState('');
-  const [eventType, setEventType] = useState<WeddingEventType>('상담');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState('10:00');
+  const [title, setTitle] = useState(item?.title ?? '');
+  const [eventType, setEventType] = useState<WeddingEventType>(item?.schedule?.eventType ?? '상담');
+  const [date, setDate] = useState(item?.schedule ? toLocalDateValue(item.schedule.scheduledAt) : toLocalDateValue(new Date().toISOString()));
+  const [time, setTime] = useState(item?.schedule ? toLocalTimeValue(item.schedule.scheduledAt) : '10:00');
   const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState('');
+  const [placeName, setPlaceName] = useState(item?.schedule?.location ?? '');
   const [placeAddress, setPlaceAddress] = useState('');
   const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
-  const [consultNoteIds, setConsultNoteIds] = useState<string[]>([]);
+  const [consultNoteIds, setConsultNoteIds] = useState<string[]>(item?.consultNoteIds ?? []);
   const [ackRole, setAckRole] = useState<AckRole>('partner');
 
   useEffect(() => {
@@ -96,6 +119,11 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
     }
   }
 
+  function handleDelete() {
+    if (!item) return;
+    deleteSchedule.mutate(item.id, { onSuccess: onClose });
+  }
+
   function handleSubmit() {
     const userId = session?.user.id;
     if (!title.trim() || !placeName.trim() || !workspaceId || !userId) return;
@@ -103,6 +131,16 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
 
     function ack(sourceId: string) {
       createScheduleAck({ sourceType: 'wedding_schedule', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch((cause) => reportFailure('일정은 저장됐지만 확인 알림 설정에 실패했어요. 일정을 수정해 확인 대상을 다시 지정해주세요.', cause));
+    }
+
+    // 수정 모드 — 제목/일정/상담노트 연결만 바꾸고 체크리스트·예산은 현재 값을 그대로 둔다
+    // (updatePrepItem이 넘기지 않은 속성을 유지한다).
+    if (item) {
+      updateItem.mutate(
+        { id: item.id, patch: { title: title.trim(), schedule, consultNoteIds } },
+        { onSuccess: () => { ack(item.id); onClose(); } },
+      );
+      return;
     }
 
     if (linkedItemId) {
@@ -122,13 +160,13 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
         <div className={styles.header}>
-          <p className={styles.headerTitle}>일정 추가</p>
+          <p className={styles.headerTitle}>{isEditing ? '일정 수정' : '일정 추가'}</p>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="닫기">
             ✕
           </button>
         </div>
 
-        {linkableItems.length > 0 && (
+        {!isEditing && linkableItems.length > 0 && (
           <>
             <label className={styles.label}>체크리스트 항목과 연결 (선택)</label>
             <select className={styles.input} value={linkedItemId} onChange={(e) => handleLinkChange(e.target.value)}>
@@ -148,7 +186,7 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
           className={styles.input}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          disabled={!!linkedItemId}
+          disabled={!isEditing && !!linkedItemId}
           placeholder="일정 제목"
         />
 
@@ -236,9 +274,30 @@ export function ScheduleEditModal({ onClose }: ScheduleEditModalProps) {
 
         <AckRoleSelect value={ackRole} onChange={setAckRole} />
 
-        <button type="button" className={styles.submit} onClick={handleSubmit}>
-          추가하기
+        <button type="button" className={styles.submit} onClick={handleSubmit} disabled={updateItem.isPending || createItem.isPending}>
+          {isEditing ? '저장하기' : '추가하기'}
         </button>
+
+        {isEditing &&
+          (isConfirmingDelete ? (
+            <div className={styles.deleteConfirmRow}>
+              <span className={styles.deleteConfirmText}>
+                {item?.checklist || item?.budget
+                  ? '체크리스트·예산은 남기고 일정만 삭제할까요?'
+                  : '이 일정을 삭제할까요?'}
+              </span>
+              <button type="button" className={styles.deleteConfirm} onClick={handleDelete} disabled={deleteSchedule.isPending}>
+                삭제
+              </button>
+              <button type="button" className={styles.deleteCancel} onClick={() => setIsConfirmingDelete(false)}>
+                취소
+              </button>
+            </div>
+          ) : (
+            <button type="button" className={styles.deleteButton} onClick={() => setIsConfirmingDelete(true)}>
+              일정 삭제
+            </button>
+          ))}
       </div>
     </div>
   );

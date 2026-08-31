@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
-import { consultScheduleEventsQueryKey } from '@/shared/hooks/useConsultScheduleEvents';
+import { invalidateCalendarEvents } from '@/shared/hooks/useCalendarEvents';
 import {
   createConsultNote,
   createExpense,
@@ -10,6 +10,7 @@ import {
   deleteExpense,
   deletePrepItem,
   deleteVendorContact,
+  deleteWeddingSchedule,
   fetchConsultNotes,
   fetchExpenses,
   fetchHoneymoon,
@@ -65,7 +66,7 @@ export function useCreatePrepItem(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPrepItem,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: prepItemsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidatePrepItemQueries(queryClient, workspaceId),
   });
 }
 
@@ -73,7 +74,7 @@ export function useUpdatePrepItem(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updatePrepItem,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: prepItemsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidatePrepItemQueries(queryClient, workspaceId),
   });
 }
 
@@ -81,7 +82,16 @@ export function useDeletePrepItem(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deletePrepItem,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: prepItemsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidatePrepItemQueries(queryClient, workspaceId),
+  });
+}
+
+// 일정 삭제 — 체크리스트/예산이 함께 붙은 항목이면 일정 속성만 떼고 항목은 남긴다(api 주석 참조).
+export function useDeleteWeddingSchedule(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteWeddingSchedule,
+    onSuccess: () => invalidatePrepItemQueries(queryClient, workspaceId),
   });
 }
 
@@ -89,7 +99,7 @@ export function useToggleChecklistDone(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: toggleChecklistDone,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: prepItemsQueryKey(workspaceId ?? '') }),
+    onSuccess: () => invalidatePrepItemQueries(queryClient, workspaceId),
   });
 }
 
@@ -101,13 +111,21 @@ export function useConsultNotes(workspaceId: string | undefined) {
   });
 }
 
-// 상담노트는 결혼 챕터 목록(consultNotesQueryKey)과 세 챕터 달력이 함께 쓰는 일정 목록
-// (consultScheduleEventsQueryKey) 두 곳에서 읽힌다. 한쪽만 무효화하면 노트를 쓴 뒤 달력이
-// 옛 값을 계속 보여주므로 항상 같이 무효화한다.
+// 상담노트는 결혼 챕터 목록(consultNotesQueryKey)과 모든 달력이 함께 쓰는 통합 일정
+// (calendarEventsQueryKey) 두 곳에서 읽힌다. 한쪽만 무효화하면 노트를 쓴 뒤 달력이 옛 값을
+// 계속 보여주므로 항상 같이 무효화한다.
 function invalidateConsultNoteQueries(queryClient: ReturnType<typeof useQueryClient>, workspaceId: string | undefined) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: consultNotesQueryKey(workspaceId ?? '') }),
-    queryClient.invalidateQueries({ queryKey: consultScheduleEventsQueryKey(workspaceId ?? '') }),
+    invalidateCalendarEvents(queryClient, workspaceId),
+  ]);
+}
+
+// prep_item에는 일정(schedule_attr)이 붙을 수 있으므로 항목이 바뀌면 통합 일정도 같이 무효화한다.
+function invalidatePrepItemQueries(queryClient: ReturnType<typeof useQueryClient>, workspaceId: string | undefined) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: prepItemsQueryKey(workspaceId ?? '') }),
+    invalidateCalendarEvents(queryClient, workspaceId),
   ]);
 }
 
@@ -139,7 +157,11 @@ export function useUpdateHoneymoon(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (honeymoon: Parameters<typeof updateHoneymoon>[1]) => updateHoneymoon(workspaceId!, honeymoon),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: honeymoonQueryKey(workspaceId ?? '') }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: honeymoonQueryKey(workspaceId ?? '') }),
+        invalidateCalendarEvents(queryClient, workspaceId),
+      ]),
   });
 }
 

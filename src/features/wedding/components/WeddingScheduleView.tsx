@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
-import { ConsultScheduleList } from '@/shared/components/schedule/ConsultScheduleList';
-import { useConsultScheduleEvents } from '@/shared/hooks/useConsultScheduleEvents';
-import { groupConsultEventsByDate } from '@/shared/lib/schedule/consultScheduleEvents';
+import { CalendarEventList } from '@/shared/components/schedule/CalendarEventList';
+import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
+import { filterCalendarEventsByChapter, groupCalendarEventsByDate } from '@/shared/lib/schedule/calendarEvents';
 import { formatWon } from '../deriveStats';
 import type { PrepItem, WeddingEventType } from '../types';
 import { ScheduleEditModal } from './ScheduleEditModal';
@@ -44,9 +44,12 @@ export function WeddingScheduleView() {
   const { session } = useSession();
   const { data: items } = usePrepItems(workspaceId);
   const { data: consultNotes } = useConsultNotes(workspaceId);
-  const { data: consultEvents } = useConsultScheduleEvents(workspaceId);
+  // 결혼 챕터의 모든 일정(일정 탭 항목 + 상담노트 방문일 + 신혼여행 출발일)을 한 달력에 모은다.
+  const { data: allEvents } = useCalendarEvents(workspaceId);
+  const [searchParams, setSearchParams] = useSearchParams();
   const actionsHost = useWeddingActionsHost();
   const [showForm, setShowForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<PrepItem | null>(null);
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -68,22 +71,47 @@ export function WeddingScheduleView() {
     return map;
   }, [scheduled]);
 
-  // 상담노트의 방문 날짜도 같은 달력에 표시한다 — 노트를 쓰면 일정 탭에서 바로 보이도록
-  // (2026-08-31). 노트는 시각이 없는 날짜 단위 일정이라 타임라인이 아니라 날짜 패널에 붙인다.
-  const consultEventsByDate = useMemo(() => groupConsultEventsByDate(consultEvents ?? []), [consultEvents]);
+  const weddingEvents = useMemo(
+    () => filterCalendarEventsByChapter(allEvents ?? [], ['wedding']),
+    [allEvents],
+  );
+  const weddingEventsByDate = useMemo(() => groupCalendarEventsByDate(weddingEvents), [weddingEvents]);
 
   const year = calendarCursor.getFullYear();
   const month = calendarCursor.getMonth();
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
 
   const listItems = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : scheduled;
-  const selectedDateConsultEvents = selectedDate
-    ? (consultEventsByDate.get(selectedDate) ?? [])
-    : (consultEvents ?? []);
+  const selectedDateEvents = selectedDate ? (weddingEventsByDate.get(selectedDate) ?? []) : weddingEvents;
   const selectedItem = selectedItemId ? scheduled.find((item) => item.id === selectedItemId) : undefined;
   const selectedItemNotes = selectedItem
     ? (consultNotes ?? []).filter((note) => selectedItem.consultNoteIds.includes(note.id))
     : [];
+
+  // 다른 달력(메인/연애)에서 결혼 일정을 누르면 /wedding/schedule?event=<id>로 들어온다.
+  const requestedEventId = searchParams.get('event');
+  const openedEventIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedEventId) {
+      openedEventIdRef.current = null;
+      return;
+    }
+    if (openedEventIdRef.current === requestedEventId) return;
+    const target = scheduled.find((item) => item.id === requestedEventId);
+    if (!target) return; // 아직 로딩 중이거나 접근 권한이 없는 항목
+    openedEventIdRef.current = requestedEventId;
+    setSelectedItemId(requestedEventId);
+    setCalendarCursor(new Date(target.schedule!.scheduledAt));
+  }, [requestedEventId, scheduled]);
+
+  function closeDetail() {
+    setSelectedItemId(null);
+    if (searchParams.has('event')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('event');
+      setSearchParams(next, { replace: true });
+    }
+  }
 
   function handleSelectDate(day: number) {
     const key = dateKey(year, month, day);
@@ -108,6 +136,7 @@ export function WeddingScheduleView() {
       {actionsHost && createPortal(actionsNode, actionsHost)}
 
       {showForm && <ScheduleEditModal onClose={() => setShowForm(false)} />}
+      {editingItem && <ScheduleEditModal item={editingItem} onClose={() => setEditingItem(null)} />}
 
       <div className={styles.layout}>
         <div className={styles.calendarCol}>
@@ -133,7 +162,7 @@ export function WeddingScheduleView() {
             {cells.map((day, index) => {
               if (day === null) return <span key={index} className={styles.dayCellEmpty} />;
               const key = dateKey(year, month, day);
-              const hasEvents = eventsByDate.has(key) || consultEventsByDate.has(key);
+              const hasEvents = weddingEventsByDate.has(key);
               const isSelected = selectedDate === key;
               return (
                 <button
@@ -180,20 +209,27 @@ export function WeddingScheduleView() {
                 </span>
               </button>
             ))}
-            {listItems.length === 0 && selectedDateConsultEvents.length === 0 && (
-              <p className={styles.empty}>등록된 일정이 없어요.</p>
-            )}
+            {listItems.length === 0 && <p className={styles.empty}>등록된 일정이 없어요.</p>}
           </div>
-          <ConsultScheduleList events={selectedDateConsultEvents} title="상담 일정" />
+          <CalendarEventList
+            events={selectedDateEvents}
+            title={selectedDate ? `${selectedDate} 결혼 일정 전체` : '결혼 일정 전체'}
+            showChapter={false}
+          />
         </div>
 
         {selectedItem && (
           <div className={styles.detailRow}>
             <div className={styles.detailHead}>
               <p className={styles.detailTitle}>{selectedItem.title}</p>
-              <button type="button" className={styles.detailClose} onClick={() => setSelectedItemId(null)} aria-label="닫기">
-                ✕
-              </button>
+              <div className={styles.detailActions}>
+                <button type="button" className={styles.detailAction} onClick={() => setEditingItem(selectedItem)}>
+                  수정
+                </button>
+                <button type="button" className={styles.detailClose} onClick={closeDetail} aria-label="닫기">
+                  ✕
+                </button>
+              </div>
             </div>
             <p className={styles.detailMeta}>
               {selectedItem.category} · 담당 {selectedItem.assigneeName ?? '함께'}

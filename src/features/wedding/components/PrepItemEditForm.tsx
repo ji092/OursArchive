@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useConsultNotes } from '../hooks/useWeddingData';
+import type { PrepItemPatch } from '../api';
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import { useWorkspaceMembers } from '@/shared/hooks/useWorkspaceMembers';
 import { WEDDING_CATEGORIES, type PaymentMethod, type PrepItem, type WeddingCategory } from '../types';
@@ -276,14 +277,16 @@ export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormPr
 
 // item이 있으면(수정) 기존 done을 보존하고, 없으면(신규 생성) 기본값(false)으로 채운다.
 // 예산 입력(예산/계약금/중도금/잔금/실지출비용) 중 하나라도 있으면 budget 객체를 만든다 — 나머지 미입력분은 0/null.
-export function toPrepItemPatch(values: PrepItemEditFormValues, item?: PrepItem): Partial<Omit<PrepItem, 'id'>> {
+// 일정(schedule)은 이 폼에서 다루지 않으므로 patch에 넣지 않는다 — updatePrepItem이 현재 값을
+// 그대로 유지한다. 예산은 입력이 전부 비면 "예산 없음"이 의도이므로 null(삭제)로 명시한다.
+export function toPrepItemPatch(values: PrepItemEditFormValues, item?: PrepItem): PrepItemPatch {
   return {
     title: values.title,
     category: values.category,
     assigneeId: values.assigneeId,
     checklist: { done: item?.checklist?.done ?? false, dueDate: values.dueDate },
     consultNoteIds: values.consultNoteIds,
-    budget: buildBudget(values),
+    budget: buildBudget(values) ?? null,
   };
 }
 

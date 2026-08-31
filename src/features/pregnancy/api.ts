@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
+import { deleteScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
 import type { Checkup, HealthLog, PregnancyDiary, PregnancyEvent, PregnancyExpense, WeekContent } from './types';
 
 // backend/policies/0009_pregnancy_family_revoke.sql로 family 접근을 이미 회수했으므로
@@ -166,6 +167,7 @@ export async function updateCheckup(id: string, input: SaveCheckupInput): Promis
 }
 
 export async function deleteCheckup(id: string): Promise<void> {
+  await deleteScheduleAck('pregnancy_checkup', id);
   const { error } = await supabase.from('checkup').delete().eq('id', id);
   if (error) throw error;
 }
@@ -223,7 +225,10 @@ export async function updateEvent(id: string, input: SaveEventInput): Promise<vo
   if (error) throw error;
 }
 
+// 일정 행과 함께 확인 요청(schedule_ack)·일정 댓글도 정리한다 — 안 그러면 지운 일정에 대해
+// 리마인더 푸시가 계속 나간다(deleteLovePlan과 같은 규칙, 2026-08-31 추가).
 export async function deleteEvent(id: string): Promise<void> {
+  await deleteScheduleAck('pregnancy_event', id);
   const { error } = await supabase.from('pregnancy_event').delete().eq('id', id);
   if (error) throw error;
 }

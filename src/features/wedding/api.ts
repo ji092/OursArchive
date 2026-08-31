@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
+import { deleteScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
 import { deleteContentPhotos, resolveContentPhotoUrls, rollbackUploadedPhotos, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
 import type { ConsultNote, Expense, Honeymoon, HoneymoonDay, PaymentMethod, PrepItem, VendorContact, WeddingEventType } from './types';
 
@@ -105,23 +106,66 @@ export async function createPrepItem(input: CreatePrepItemInput): Promise<string
   return data as string;
 }
 
+// update_prep_item RPC는 "전체 교체"다 — 넘기지 않은 속성(checklist/schedule/budget)은 지워진다.
+// 그래서 patch는 반드시 현재 값과 합쳐서 완전한 상태로 보내야 한다. 예전에는 호출부가 부분 patch를
+// 그대로 넘겨서, 일정 탭에서 체크리스트 항목에 일정을 붙이면 그 항목의 체크리스트·예산이 같이
+// 지워졌다(2026-08-31 수정).
+//
+// null = 그 속성을 지운다 / 생략(undefined) = 현재 값을 그대로 둔다.
+export interface PrepItemPatch {
+  title?: string;
+  category?: PrepItem['category'];
+  assigneeId?: string | null;
+  checklist?: PrepItem['checklist'] | null;
+  schedule?: PrepItem['schedule'] | null;
+  budget?: PrepItem['budget'] | null;
+  consultNoteIds?: string[];
+}
+
 export interface UpdatePrepItemInput {
   id: string;
-  patch: Partial<Omit<PrepItem, 'id'>>;
+  patch: PrepItemPatch;
+}
+
+export async function fetchPrepItem(id: string): Promise<PrepItem> {
+  const { data, error } = await supabase.from('prep_item').select(PREP_ITEM_SELECT).eq('id', id).single();
+  if (error) throw error;
+  return mapPrepItemRow(data, new Map());
+}
+
+function pick<T>(patched: T | null | undefined, current: T | undefined): T | null {
+  if (patched === undefined) return current ?? null;
+  return patched ?? null;
 }
 
 export async function updatePrepItem({ id, patch }: UpdatePrepItemInput): Promise<void> {
+  // 병합 기준값을 서버에서 다시 읽는다 — 화면 캐시가 오래된 상태에서 저장해 남의 수정을
+  // 덮어쓰는 창을 최대한 줄인다(RPC 자체가 전체 교체라 완전한 원자성은 아니다).
+  const current = await fetchPrepItem(id);
   const { error } = await supabase.rpc('update_prep_item', {
     item_id: id,
-    p_title: patch.title,
-    p_category: patch.category,
-    p_assignee_id: patch.assigneeId ?? null,
-    p_checklist: patch.checklist ?? null,
-    p_schedule: patch.schedule ?? null,
-    p_budget: buildBudgetJson(patch.budget),
-    p_consult_note_ids: patch.consultNoteIds ?? [],
+    p_title: patch.title ?? current.title,
+    p_category: patch.category ?? current.category,
+    p_assignee_id: patch.assigneeId !== undefined ? patch.assigneeId : current.assigneeId,
+    p_checklist: pick(patch.checklist, current.checklist),
+    p_schedule: pick(patch.schedule, current.schedule),
+    p_budget: buildBudgetJson(pick(patch.budget, current.budget) ?? undefined),
+    p_consult_note_ids: patch.consultNoteIds ?? current.consultNoteIds,
   });
   if (error) throw error;
+}
+
+// 일정만 떼어내기 — 체크리스트·예산이 함께 붙어 있는 항목은 지우지 않고 일정 속성만 없앤다.
+// 일정에 걸린 확인 요청(schedule_ack)과 일정 댓글도 같이 정리한다. 안 그러면 지운 일정에
+// 리마인더 푸시가 계속 나간다(deleteLovePlan과 같은 규칙).
+export async function deleteWeddingSchedule(id: string): Promise<void> {
+  const current = await fetchPrepItem(id);
+  await deleteScheduleAck('wedding_schedule', id);
+  if (current.checklist || current.budget) {
+    await updatePrepItem({ id, patch: { schedule: null } });
+    return;
+  }
+  await deletePrepItem(id);
 }
 
 export async function deletePrepItem(id: string): Promise<void> {

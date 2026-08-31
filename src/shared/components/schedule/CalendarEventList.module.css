@@ -20,18 +20,12 @@
   color: inherit;
 }
 
-.badgeScheduled,
-.badgeDone {
+.badge {
   flex-shrink: 0;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
   border: 1px solid var(--color-border);
-}
-
-.badgeDone {
-  background: var(--color-border);
-  color: var(--color-text-muted);
+  font-size: 11px;
 }
 
 .info {
@@ -41,20 +35,28 @@
   min-width: 0;
 }
 
-.vendor {
+.eventTitle {
   font-size: 13px;
   font-weight: 700;
 }
 
-.type {
+.chapter {
+  margin-right: 6px;
   font-weight: 400;
+  font-size: 11px;
   color: var(--color-text-muted);
 }
 
-.address {
+.meta {
   font-size: 12px;
   color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.empty {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }

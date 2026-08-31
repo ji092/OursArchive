@@ -3,9 +3,9 @@ import { IconClock, IconPin, IconTrash } from '@/shared/components/ui/icons';
 import { useSearchParams } from 'react-router-dom';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
-import { ConsultScheduleList } from '@/shared/components/schedule/ConsultScheduleList';
-import { useConsultScheduleEvents } from '@/shared/hooks/useConsultScheduleEvents';
-import { consultEventLabel, groupConsultEventsByDate } from '@/shared/lib/schedule/consultScheduleEvents';
+import { CalendarEventList } from '@/shared/components/schedule/CalendarEventList';
+import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
+import { groupCalendarEventsByDate } from '@/shared/lib/schedule/calendarEvents';
 import { useDeleteLovePlan } from '../hooks/useCreateLovePlan';
 import { useLovePlans } from '../hooks/useLovePlans';
 import { useLoveRecords } from '../hooks/useLoveRecords';
@@ -32,8 +32,9 @@ export function LoveCalendarView() {
   const { data: membership } = useMyMembership(session?.user.id);
   const { data: records } = useLoveRecords(membership?.workspaceId);
   const { data: plans } = useLovePlans(membership?.workspaceId);
-  // 결혼 준비 탭에서 쓴 상담노트도 이 달력(대시보드 "우리 일정" 포함)에 함께 표시한다 (2026-08-31).
-  const { data: consultEvents } = useConsultScheduleEvents(membership?.workspaceId);
+  // 메인 달력 = 챕터를 가리지 않는 전체 일정(연애 일정·결혼 일정/상담노트/신혼여행·임신 일정/검진).
+  // 연애 기록(love_record)과 연애 일정(love_plan)은 이 화면 고유 표시라 따로 유지한다 (2026-08-31).
+  const { data: calendarEvents } = useCalendarEvents(membership?.workspaceId);
   const [, setSearchParams] = useSearchParams();
 
   const today = new Date();
@@ -74,7 +75,11 @@ export function LoveCalendarView() {
     return map;
   }, [plans]);
 
-  const consultEventsByDate = useMemo(() => groupConsultEventsByDate(consultEvents ?? []), [consultEvents]);
+  // 연애 일정은 love_plan 목록으로 이미 그리고 있으므로, 통합 일정에서는 중복을 걸러낸다.
+  const otherChapterEventsByDate = useMemo(
+    () => groupCalendarEventsByDate((calendarEvents ?? []).filter((event) => event.sourceType !== 'love_plan')),
+    [calendarEvents],
+  );
 
   const firstDayOfMonth = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -95,7 +100,7 @@ export function LoveCalendarView() {
 
   const selectedRecords = selectedDateKey ? (recordsByDate.get(selectedDateKey) ?? []) : [];
   const selectedPlans = selectedDateKey ? (plansByDate.get(selectedDateKey) ?? []) : [];
-  const selectedConsults = selectedDateKey ? (consultEventsByDate.get(selectedDateKey) ?? []) : [];
+  const selectedOtherEvents = selectedDateKey ? (otherChapterEventsByDate.get(selectedDateKey) ?? []) : [];
 
   return (
     <div>
@@ -125,9 +130,9 @@ export function LoveCalendarView() {
           const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const dayRecords = recordsByDate.get(dateKey) ?? [];
           const dayPlans = plansByDate.get(dateKey) ?? [];
-          const dayConsults = consultEventsByDate.get(dateKey) ?? [];
+          const dayOtherEvents = otherChapterEventsByDate.get(dateKey) ?? [];
           const isSelected = dateKey === selectedDateKey;
-          const hasPlan = dayPlans.length > 0 || dayConsults.length > 0;
+          const hasPlan = dayPlans.length > 0 || dayOtherEvents.length > 0;
           return (
             <button
               key={dateKey}
@@ -143,7 +148,7 @@ export function LoveCalendarView() {
                 className={hasPlan ? `${styles.cellDate} ${styles.cellDateHasPlan}` : styles.cellDate}
                 title={
                   hasPlan
-                    ? [...dayPlans.map((plan) => plan.title), ...dayConsults.map(consultEventLabel)].join(', ')
+                    ? [...dayPlans.map((plan) => plan.title), ...dayOtherEvents.map((event) => event.title)].join(', ')
                     : undefined
                 }
               >
@@ -227,8 +232,8 @@ export function LoveCalendarView() {
               )}
             </div>
           )}
-          <ConsultScheduleList events={selectedConsults} />
-          {selectedRecords.length === 0 && selectedPlans.length === 0 && selectedConsults.length === 0 && (
+          <CalendarEventList events={selectedOtherEvents} title="다른 챕터 일정" />
+          {selectedRecords.length === 0 && selectedPlans.length === 0 && selectedOtherEvents.length === 0 && (
             <p className={styles.dayPanelEmpty}>이 날의 기록이 없어요.</p>
           )}
           {selectedRecords.map((record) => (
