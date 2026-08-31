@@ -1,47 +1,43 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { IconPin } from '@/shared/components/ui/icons';
+import { IconPin, IconTrash } from '@/shared/components/ui/icons';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
-import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
+import { usePlaceSearch } from '@/shared/lib/kakao/usePlaceSearch';
 import { useWeddingActionsHost } from '../actionsPortal';
-import { useCreateConsultNote, useConsultNotes, useUpdateConsultNote } from '../hooks/useWeddingData';
+import { useCreateConsultNote, useConsultNotes, useDeleteConsultNote, useUpdateConsultNote } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import type { ConsultNote, WeddingCategory } from '../types';
 import { WEDDING_CATEGORIES } from '../types';
 import styles from './WeddingConsultNotesView.module.css';
 
 const MAX_PHOTOS = 6;
-type PlaceSearchMode = 'place' | 'address';
-
-const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: string }[] = [
-  { key: 'place', label: '장소검색', placeholder: '장소 검색 (예: 논현 W웨딩홀)' },
-  { key: 'address', label: '주소검색', placeholder: '주소 검색 (예: 강남구 논현동 200)' },
-];
 
 export function WeddingConsultNotesView() {
   const workspaceId = useCurrentWorkspaceId();
   const { data: notes } = useConsultNotes(workspaceId);
   const createNote = useCreateConsultNote(workspaceId);
   const updateNote = useUpdateConsultNote(workspaceId);
+  const deleteNote = useDeleteConsultNote(workspaceId);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const actionsHost = useWeddingActionsHost();
   const [editingNote, setEditingNote] = useState<ConsultNote | 'new' | null>(null);
   const [vendorName, setVendorName] = useState('');
   const [vendorType, setVendorType] = useState<WeddingCategory>('웨딩홀');
   const [contactPhone, setContactPhone] = useState('');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().slice(0, 10));
+  // 상담노트가 곧 상담 일정이라 시각도 받는다 — 비워두면 "시간 미정"인 하루 종일 일정이 된다.
+  const [visitTime, setVisitTime] = useState('');
   const [status, setStatus] = useState<ConsultNote['status']>('scheduled');
   const [keyMemos, setKeyMemos] = useState('');
   const [questions, setQuestions] = useState('');
   const [existingPhotos, setExistingPhotos] = useState<ConsultNote['photos']>([]);
   const [removedPhotoPaths, setRemovedPhotoPaths] = useState<string[]>([]);
   const [newPhotos, setNewPhotos] = useState<{ file: File; previewUrl: string }[]>([]);
-  const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState('');
-  const [address, setAddress] = useState('');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
-  const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  const place = usePlaceSearch({
+    placePlaceholder: '장소 검색 (예: 논현 W웨딩홀)',
+    addressPlaceholder: '주소 검색 (예: 강남구 논현동 200)',
+  });
   // 달력(연애/결혼/임신)에서 상담 일정을 누르면 ?note=<id>로 들어온다 — 해당 노트를 바로 연다.
   // 모달은 라우트가 아니라 쿼리 파라미터로 연다는 규칙(CLAUDE.md)을 그대로 따른다.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,48 +56,19 @@ export function WeddingConsultNotesView() {
     openEdit(target);
   }, [requestedNoteId, notes]);
 
-  useEffect(() => {
-    const query = placeName.trim();
-    if (!query || coords) {
-      setPlaceSuggestions([]);
-      return;
-    }
-    const search = placeSearchMode === 'address' ? searchKakaoAddress : searchKakaoPlaces;
-    const timer = setTimeout(() => {
-      search(query).then(setPlaceSuggestions);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [placeName, coords, placeSearchMode]);
-
-  function switchPlaceSearchMode(mode: PlaceSearchMode) {
-    setPlaceSearchMode(mode);
-    setPlaceName('');
-    setAddress('');
-    setCoords(null);
-    setPlaceSuggestions([]);
-  }
-
-  function selectPlace(place: KakaoPlaceResult) {
-    setPlaceName(place.placeName);
-    setAddress(place.addressName);
-    setCoords({ lat: place.lat, lng: place.lng });
-    setIsPlaceListOpen(false);
-  }
-
   function openNew() {
     setVendorName('');
     setVendorType('웨딩홀');
     setContactPhone('');
     setVisitDate(new Date().toISOString().slice(0, 10));
+    setVisitTime('');
     setStatus('scheduled');
     setKeyMemos('');
     setQuestions('');
     setExistingPhotos([]);
     setRemovedPhotoPaths([]);
     setNewPhotos([]);
-    setPlaceName('');
-    setAddress('');
-    setCoords(null);
+    place.reset();
     setEditingNote('new');
   }
 
@@ -110,15 +77,18 @@ export function WeddingConsultNotesView() {
     setVendorType(note.vendorType);
     setContactPhone(note.contactPhone);
     setVisitDate(note.visitDate);
+    setVisitTime(note.visitTime ?? '');
     setStatus(note.status);
     setKeyMemos(note.keyMemos.join('\n'));
     setQuestions(note.questions.join('\n'));
     setExistingPhotos(note.photos);
     setRemovedPhotoPaths([]);
     setNewPhotos([]);
-    setPlaceName(note.vendorName);
-    setAddress(note.address);
-    setCoords(note.lat !== null && note.lng !== null ? { lat: note.lat, lng: note.lng } : null);
+    place.reset({
+      placeName: note.vendorName,
+      address: note.address,
+      coords: note.lat !== null && note.lng !== null ? { lat: note.lat, lng: note.lng } : null,
+    });
     setEditingNote(note);
   }
 
@@ -162,12 +132,13 @@ export function WeddingConsultNotesView() {
       vendorType,
       contactPhone: contactPhone.trim(),
       visitDate,
+      visitTime: visitTime || null,
       status,
       keyMemos: keyMemos.split('\n').map((line) => line.trim()).filter(Boolean),
       questions: questions.split('\n').map((line) => line.trim()).filter(Boolean),
-      address,
-      lat: coords?.lat ?? null,
-      lng: coords?.lng ?? null,
+      address: place.address,
+      lat: place.coords?.lat ?? null,
+      lng: place.coords?.lng ?? null,
     };
     if (editingNote === 'new') {
       createNote.mutate(
@@ -227,6 +198,13 @@ export function WeddingConsultNotesView() {
 
             <div className={styles.formRow}>
               <input type="date" className={styles.input} value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
+              <input
+                type="time"
+                className={styles.input}
+                value={visitTime}
+                onChange={(e) => setVisitTime(e.target.value)}
+                aria-label="상담 시각 (선택)"
+              />
               <div className={styles.chipRow}>
                 <button type="button" className={status === 'scheduled' ? `${styles.chip} ${styles.chipActive}` : styles.chip} onClick={() => setStatus('scheduled')}>
                   예정
@@ -246,14 +224,16 @@ export function WeddingConsultNotesView() {
               onChange={(e) => setContactPhone(e.target.value)}
             />
 
+            <p className={styles.hint}>날짜·시각을 넣으면 결혼 일정 탭과 메인 달력에 상담 일정으로 함께 나와요.</p>
+
             <p className={styles.label}>업체 위치</p>
             <div className={styles.chipRow}>
-              {PLACE_SEARCH_MODES.map((mode) => (
+              {place.modes.map((mode) => (
                 <button
                   key={mode.key}
                   type="button"
-                  className={mode.key === placeSearchMode ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-                  onClick={() => switchPlaceSearchMode(mode.key)}
+                  className={mode.key === place.mode ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                  onClick={() => place.switchMode(mode.key)}
                 >
                   {mode.label}
                 </button>
@@ -262,33 +242,30 @@ export function WeddingConsultNotesView() {
             <div className={styles.placeSearch}>
               <input
                 className={styles.input}
-                placeholder={PLACE_SEARCH_MODES.find((mode) => mode.key === placeSearchMode)!.placeholder}
-                value={placeName}
-                onChange={(event) => {
-                  setPlaceName(event.target.value);
-                  setAddress('');
-                  setCoords(null);
-                  setIsPlaceListOpen(true);
-                }}
-                onFocus={() => setIsPlaceListOpen(true)}
-                onBlur={() => setTimeout(() => setIsPlaceListOpen(false), 100)}
+                placeholder={place.activePlaceholder}
+                value={place.placeName}
+                onChange={(event) => place.changeQuery(event.target.value)}
+                onFocus={() => place.setIsListOpen(true)}
+                onBlur={() => setTimeout(() => place.setIsListOpen(false), 100)}
                 autoComplete="off"
               />
-              {isPlaceListOpen && placeSuggestions.length > 0 && (
+              {place.isListOpen && place.suggestions.length > 0 && (
                 <ul className={styles.placeResults}>
-                  {placeSuggestions.map((place) => (
-                    <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
-                      <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                        <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
-                        <span className={styles.placeResultAddress}>{place.addressName}</span>
+                  {place.suggestions.map((result) => (
+                    <li key={`${result.placeName}-${result.lat}-${result.lng}`}>
+                      <button type="button" className={styles.placeResultItem} onMouseDown={() => place.selectPlace(result)}>
+                        <span className={styles.placeResultName}><IconPin /> {result.placeName}</span>
+                        <span className={styles.placeResultAddress}>{result.addressName}</span>
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            {address && <p className={styles.addressText}><IconPin /> {address}</p>}
-            {coords && <KakaoMap markers={[{ id: 'selected', lat: coords.lat, lng: coords.lng }]} className={styles.mapPreview} />}
+            {place.address && <p className={styles.addressText}><IconPin /> {place.address}</p>}
+            {place.coords && (
+              <KakaoMap markers={[{ id: 'selected', lat: place.coords.lat, lng: place.coords.lng }]} className={styles.mapPreview} />
+            )}
 
             <textarea className={styles.textarea} placeholder="핵심 메모 (줄바꿈으로 구분)" value={keyMemos} onChange={(e) => setKeyMemos(e.target.value)} />
             <textarea className={styles.textarea} placeholder="물어볼 것 (줄바꿈으로 구분)" value={questions} onChange={(e) => setQuestions(e.target.value)} />
@@ -326,19 +303,82 @@ export function WeddingConsultNotesView() {
             <button type="button" className={styles.submit} onClick={handleSubmit}>
               {editingNote === 'new' ? '추가하기' : '저장하기'}
             </button>
+
+            {editingNote !== 'new' &&
+              (confirmingDeleteId === editingNote.id ? (
+                <div className={styles.formDeleteRow}>
+                  <span className={styles.cardConfirmText}>이 상담노트를 삭제할까요? 사진도 함께 지워집니다.</span>
+                  <button
+                    type="button"
+                    className={styles.cardConfirmDelete}
+                    disabled={deleteNote.isPending}
+                    onClick={() =>
+                      deleteNote.mutate(editingNote.id, {
+                        onSuccess: () => {
+                          setConfirmingDeleteId(null);
+                          closeForm();
+                        },
+                      })
+                    }
+                  >
+                    삭제
+                  </button>
+                  <button type="button" className={styles.cardConfirmCancel} onClick={() => setConfirmingDeleteId(null)}>
+                    취소
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className={styles.formDelete} onClick={() => setConfirmingDeleteId(editingNote.id)}>
+                  노트 삭제
+                </button>
+              ))}
           </div>
         </div>
       )}
 
       <div className={styles.grid}>
         {(notes ?? []).map((note) => (
-          <button key={note.id} type="button" className={styles.card} onClick={() => openEdit(note)}>
+          <div key={note.id} className={styles.cardWrap}>
+            {/* 삭제 버튼은 카드(button) 안에 넣을 수 없어 바깥에 겹쳐 둔다. */}
+            {confirmingDeleteId === note.id ? (
+              <span className={styles.cardConfirm}>
+                <span className={styles.cardConfirmText}>삭제할까요?</span>
+                <button
+                  type="button"
+                  className={styles.cardConfirmDelete}
+                  disabled={deleteNote.isPending}
+                  onClick={() =>
+                    deleteNote.mutate(note.id, {
+                      onSuccess: () => {
+                        setConfirmingDeleteId(null);
+                        if (editingNote !== 'new' && editingNote?.id === note.id) closeForm();
+                      },
+                    })
+                  }
+                >
+                  삭제
+                </button>
+                <button type="button" className={styles.cardConfirmCancel} onClick={() => setConfirmingDeleteId(null)}>
+                  취소
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className={styles.cardDelete}
+                onClick={() => setConfirmingDeleteId(note.id)}
+                aria-label={`${note.vendorName} 상담노트 삭제`}
+              >
+                <IconTrash />
+              </button>
+            )}
+          <button type="button" className={styles.card} onClick={() => openEdit(note)}>
             <div className={styles.cardHead}>
               <p className={styles.vendorName}>{note.vendorName}</p>
               <span className={note.status === 'done' ? styles.badgeDone : styles.badgeScheduled}>{note.status === 'done' ? '완료' : '예정'}</span>
             </div>
             <p className={styles.vendorMeta}>
-              {note.vendorType} · {note.visitDate}
+              {note.vendorType} · {note.visitDate}{note.visitTime ? ` ${note.visitTime}` : ''}
               {note.address && ` · ${note.address}`}
               {note.contactPhone && ` · ${note.contactPhone}`}
             </p>
@@ -370,6 +410,7 @@ export function WeddingConsultNotesView() {
               </div>
             )}
           </button>
+          </div>
         ))}
       </div>
     </div>

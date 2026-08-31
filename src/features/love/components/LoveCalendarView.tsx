@@ -5,18 +5,13 @@ import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { CalendarEventList } from '@/shared/components/schedule/CalendarEventList';
 import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
-import { groupCalendarEventsByDate } from '@/shared/lib/schedule/calendarEvents';
+import { groupCalendarEventsByDate, localDateKey } from '@/shared/lib/schedule/calendarEvents';
+import { buildMonthCells, monthCellDateKey, WEEKDAY_LABELS } from '@/shared/lib/schedule/calendarGrid';
 import { useDeleteLovePlan } from '../hooks/useCreateLovePlan';
 import { useLovePlans } from '../hooks/useLovePlans';
 import { useLoveRecords } from '../hooks/useLoveRecords';
 import { LoveRecordDetailModalController } from './LoveRecordDetailModalController';
 import styles from './LoveCalendarView.module.css';
-
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
-function toDateKey(iso: string): string {
-  return iso.slice(0, 10);
-}
 
 function formatTime(iso: string): string {
   const date = new Date(iso);
@@ -27,14 +22,20 @@ function formatTime(iso: string): string {
   return `${ampm} ${hour12}:${minutes}`;
 }
 
-export function LoveCalendarView() {
+export interface LoveCalendarViewProps {
+  // 메인 달력(대시보드)만 다른 챕터 일정까지 함께 보여준다. 연애 탭 달력은 연애 일정만 —
+  // "각 챕터 일정은 그 챕터 달력과 메인 달력 두 곳에 나온다"는 규칙(2026-08-31 사용자 지정).
+  includeOtherChapters?: boolean;
+}
+
+export function LoveCalendarView({ includeOtherChapters = false }: LoveCalendarViewProps = {}) {
   const { session } = useSession();
   const { data: membership } = useMyMembership(session?.user.id);
   const { data: records } = useLoveRecords(membership?.workspaceId);
   const { data: plans } = useLovePlans(membership?.workspaceId);
   // 메인 달력 = 챕터를 가리지 않는 전체 일정(연애 일정·결혼 일정/상담노트/신혼여행·임신 일정/검진).
   // 연애 기록(love_record)과 연애 일정(love_plan)은 이 화면 고유 표시라 따로 유지한다 (2026-08-31).
-  const { data: calendarEvents } = useCalendarEvents(membership?.workspaceId);
+  const { data: calendarEvents } = useCalendarEvents(includeOtherChapters ? membership?.workspaceId : undefined);
   const [, setSearchParams] = useSearchParams();
 
   const today = new Date();
@@ -57,7 +58,7 @@ export function LoveCalendarView() {
   const recordsByDate = useMemo(() => {
     const map = new Map<string, typeof records>();
     for (const record of records ?? []) {
-      const key = toDateKey(record.recordedAt);
+      const key = localDateKey(record.recordedAt);
       const bucket = map.get(key) ?? [];
       bucket.push(record);
       map.set(key, bucket as NonNullable<typeof records>);
@@ -68,9 +69,10 @@ export function LoveCalendarView() {
   const plansByDate = useMemo(() => {
     const map = new Map<string, typeof plans>();
     for (const plan of plans ?? []) {
-      const bucket = map.get(plan.plannedAt) ?? [];
+      const key = localDateKey(plan.plannedAtFull);
+      const bucket = map.get(key) ?? [];
       bucket.push(plan);
-      map.set(plan.plannedAt, bucket as NonNullable<typeof plans>);
+      map.set(key, bucket as NonNullable<typeof plans>);
     }
     return map;
   }, [plans]);
@@ -81,13 +83,8 @@ export function LoveCalendarView() {
     [calendarEvents],
   );
 
-  const firstDayOfMonth = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const leadingBlanks = firstDayOfMonth.getDay();
-  const cells: (number | null)[] = [
-    ...Array.from({ length: leadingBlanks }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
+  // 이 달력은 마지막 줄 빈 칸을 그리지 않는다(칸에 테두리가 있어 빈 상자가 남는다).
+  const cells = buildMonthCells(year, month, { padTrailing: false });
 
   function goToMonth(delta: number) {
     const next = new Date(year, month + delta, 1);
@@ -117,7 +114,7 @@ export function LoveCalendarView() {
       </div>
 
       <div className={styles.weekdays}>
-        {WEEKDAYS.map((day) => (
+        {WEEKDAY_LABELS.map((day) => (
           <span key={day} className={styles.weekday}>
             {day}
           </span>
@@ -127,7 +124,7 @@ export function LoveCalendarView() {
       <div className={styles.grid}>
         {cells.map((day, index) => {
           if (day === null) return <div key={`blank-${index}`} className={styles.cellBlank} />;
-          const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dateKey = monthCellDateKey(year, month, day);
           const dayRecords = recordsByDate.get(dateKey) ?? [];
           const dayPlans = plansByDate.get(dateKey) ?? [];
           const dayOtherEvents = otherChapterEventsByDate.get(dateKey) ?? [];

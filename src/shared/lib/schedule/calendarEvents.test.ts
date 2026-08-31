@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   calendarEventDateKey,
+  localDateKey,
   calendarEventKey,
   dateOnlyToStartAt,
   filterCalendarEventsByChapter,
+  filterCalendarEventsByMonth,
   formatCalendarEventTime,
   groupCalendarEventsByDate,
   sortCalendarEvents,
+  sortCalendarEventsForList,
   type CalendarEvent,
 } from './calendarEvents';
 
@@ -37,6 +40,22 @@ describe('calendarEventDateKey', () => {
 
   it('날짜를 못 읽으면 빈 문자열을 준다', () => {
     expect(calendarEventDateKey(event({ startAt: 'not-a-date' }))).toBe('');
+  });
+});
+
+describe('localDateKey', () => {
+  it('UTC로 자르면 하루 밀리는 오전 일정도 그 날 칸에 넣는다', () => {
+    // 한국 시간 오전 8시 = 전날 23시 UTC — ISO 앞 10자를 자르면 전날로 밀린다.
+    const iso = new Date('2026-09-10T08:00:00').toISOString();
+    expect(localDateKey(iso)).toBe('2026-09-10');
+  });
+
+  it('자정 직전 일정도 그 날 칸에 남는다', () => {
+    expect(localDateKey(new Date('2026-09-10T23:59:00').toISOString())).toBe('2026-09-10');
+  });
+
+  it('날짜를 못 읽으면 빈 문자열을 준다', () => {
+    expect(localDateKey('not-a-date')).toBe('');
   });
 });
 
@@ -99,5 +118,58 @@ describe('formatCalendarEventTime', () => {
 describe('calendarEventKey', () => {
   it('소스 종류와 id를 합쳐 달력 렌더 키를 만든다', () => {
     expect(calendarEventKey(event({ sourceType: 'consult_note', sourceId: 'n1' }))).toBe('consult_note:n1');
+  });
+});
+
+describe('filterCalendarEventsByMonth', () => {
+  it('달력이 보고 있는 달의 일정만 남긴다', () => {
+    const events = [
+      event({ sourceId: 'aug', startAt: new Date('2026-08-31T10:00:00').toISOString() }),
+      event({ sourceId: 'sep', startAt: new Date('2026-09-01T10:00:00').toISOString() }),
+      event({ sourceId: 'oct', startAt: new Date('2026-10-01T10:00:00').toISOString() }),
+    ];
+    expect(filterCalendarEventsByMonth(events, 2026, 7).map((e) => e.sourceId)).toEqual(['aug']);
+    expect(filterCalendarEventsByMonth(events, 2026, 8).map((e) => e.sourceId)).toEqual(['sep']);
+  });
+
+  it('해가 다르면 같은 달이어도 제외한다', () => {
+    const events = [event({ sourceId: 'y2026', startAt: new Date('2026-09-10T10:00:00').toISOString() })];
+    expect(filterCalendarEventsByMonth(events, 2025, 8)).toEqual([]);
+  });
+});
+
+describe('sortCalendarEventsForList', () => {
+  const now = new Date('2026-09-10T12:00:00');
+
+  it('다가오는 일정이 위, 지난 일정이 아래로 간다', () => {
+    const events = [
+      event({ sourceId: 'past-old', startAt: new Date('2026-09-01T10:00:00').toISOString() }),
+      event({ sourceId: 'future-far', startAt: new Date('2026-09-20T10:00:00').toISOString() }),
+      event({ sourceId: 'past-recent', startAt: new Date('2026-09-08T10:00:00').toISOString() }),
+      event({ sourceId: 'future-near', startAt: new Date('2026-09-12T10:00:00').toISOString() }),
+    ];
+    expect(sortCalendarEventsForList(events, now).map((e) => e.sourceId)).toEqual([
+      'future-near',
+      'future-far',
+      'past-recent',
+      'past-old',
+    ]);
+  });
+
+  it('오늘 일정은 시각이 지났어도 위에 남는다', () => {
+    const events = [
+      event({ sourceId: 'today-morning', startAt: new Date('2026-09-10T09:00:00').toISOString() }),
+      event({ sourceId: 'yesterday', startAt: new Date('2026-09-09T09:00:00').toISOString() }),
+    ];
+    expect(sortCalendarEventsForList(events, now).map((e) => e.sourceId)).toEqual(['today-morning', 'yesterday']);
+  });
+
+  it('원본 배열을 바꾸지 않는다', () => {
+    const events = [
+      event({ sourceId: 'a', startAt: new Date('2026-09-01T10:00:00').toISOString() }),
+      event({ sourceId: 'b', startAt: new Date('2026-09-20T10:00:00').toISOString() }),
+    ];
+    sortCalendarEventsForList(events, now);
+    expect(events.map((e) => e.sourceId)).toEqual(['a', 'b']);
   });
 });

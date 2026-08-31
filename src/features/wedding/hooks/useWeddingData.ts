@@ -9,6 +9,7 @@ import {
   createVendorContact,
   deleteExpense,
   deletePrepItem,
+  deleteConsultNote,
   deleteVendorContact,
   deleteWeddingSchedule,
   fetchConsultNotes,
@@ -118,6 +119,8 @@ function invalidateConsultNoteQueries(queryClient: ReturnType<typeof useQueryCli
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: consultNotesQueryKey(workspaceId ?? '') }),
     invalidateCalendarEvents(queryClient, workspaceId),
+    // 노트 저장이 업체 연락처 카드를 만들거나 갱신하므로 명단 캐시도 같이 비운다(2026-09-01).
+    queryClient.invalidateQueries({ queryKey: vendorContactsQueryKey(workspaceId ?? '') }),
   ]);
 }
 
@@ -141,6 +144,14 @@ export function useUpdateConsultNote(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateConsultNote,
+    onSuccess: () => invalidateConsultNoteQueries(queryClient, workspaceId),
+  });
+}
+
+export function useDeleteConsultNote(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteConsultNote,
     onSuccess: () => invalidateConsultNoteQueries(queryClient, workspaceId),
   });
 }

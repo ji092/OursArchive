@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { IconCalendar, IconNote } from '@/shared/components/ui/icons';
+import { formatMonthDayTime } from '@/shared/lib/date/formatDateTime';
 import { createPortal } from 'react-dom';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
@@ -11,10 +12,6 @@ import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import type { AckRole } from '@/shared/lib/schedule/types';
 import type { Checkup } from '../types';
 import styles from './PregnancyCheckupView.module.css';
-
-function formatCheckupDate(iso: string): string {
-  return new Date(iso).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-}
 
 // 검진 등록/수정/삭제(2026-07-29 사용자 지정 — 기존엔 조회 전용이었음). 결혼/임신 다른 탭의
 // "+ 추가" 팝업과 동일하게 actionsPortal로 페이지 헤더에 버튼을 꽂는다.
@@ -185,7 +182,7 @@ export function PregnancyCheckupView() {
             <p className={styles.nextCheckupMeta}>
               {nextCheckup.hospital} · {nextCheckup.doctor}
             </p>
-            <p className={styles.nextCheckupMeta}><IconCalendar /> {formatCheckupDate(nextCheckup.scheduledAt)}</p>
+            <p className={styles.nextCheckupMeta}><IconCalendar /> {formatMonthDayTime(nextCheckup.scheduledAt)}</p>
             {nextCheckup.note && <p className={styles.nextCheckupNote}><IconNote /> {nextCheckup.note}</p>}
           </div>
         ) : (

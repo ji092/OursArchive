@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { IconCalendar } from '@/shared/components/ui/icons';
+import { formatMonthDayWeekdayTime } from '@/shared/lib/date/formatDateTime';
 import {
   computeBudgetSummary,
   computeCategoryProgress,
@@ -9,11 +10,6 @@ import {
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import styles from './WeddingSummaryView.module.css';
-
-function formatEventDate(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
-}
 
 export function WeddingSummaryView() {
   const workspaceId = useCurrentWorkspaceId();
@@ -89,7 +85,7 @@ export function WeddingSummaryView() {
           <div className={styles.nextEvent}>
             <p className={styles.nextEventTitle}>{nextEvent.title}</p>
             <p className={styles.nextEventMeta}>{nextEvent.schedule.location}</p>
-            <p className={styles.nextEventMeta}><IconCalendar /> {formatEventDate(nextEvent.schedule.scheduledAt)}</p>
+            <p className={styles.nextEventMeta}><IconCalendar /> {formatMonthDayWeekdayTime(nextEvent.schedule.scheduledAt)}</p>
           </div>
         ) : (
           <p className={styles.empty}>예정된 일정이 없어요.</p>

@@ -58,21 +58,27 @@ async function fetchWeddingScheduleEvents(workspaceId: string, weddingDate: stri
 async function fetchConsultNoteEvents(workspaceId: string): Promise<CalendarEvent[]> {
   const { data, error } = await supabase
     .from('consult_note')
-    .select('id, vendor_name, vendor_type, visit_date, status, address')
+    .select('id, vendor_name, vendor_type, visit_date, visit_time, status, address')
     .eq('workspace_id', workspaceId)
     .not('visit_date', 'is', null);
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    sourceType: 'consult_note' as const,
-    sourceId: row.id,
-    chapter: 'wedding' as const,
-    title: `${row.vendor_name} 상담`,
-    badge: row.status === 'done' ? '상담 완료' : '상담',
-    startAt: dateOnlyToStartAt(row.visit_date),
-    hasTime: false,
-    location: row.address ?? '',
-    linkTo: `/wedding/consult-notes?note=${row.id}`,
-  }));
+  return (data ?? []).map((row) => {
+    // 시각을 입력한 노트는 그 시각의 일정으로, 안 넣은 노트는 하루 종일 일정으로 다룬다.
+    const time = row.visit_time ? String(row.visit_time).slice(0, 5) : null;
+    return {
+      sourceType: 'consult_note' as const,
+      sourceId: row.id,
+      chapter: 'wedding' as const,
+      title: `${row.vendor_name} 상담`,
+      badge: row.status === 'done' ? '상담 완료' : '상담',
+      startAt: time
+        ? new Date(`${String(row.visit_date).slice(0, 10)}T${time}:00`).toISOString()
+        : dateOnlyToStartAt(row.visit_date),
+      hasTime: !!time,
+      location: row.address ?? '',
+      linkTo: `/wedding/consult-notes?note=${row.id}`,
+    };
+  });
 }
 
 async function fetchHoneymoonEvents(workspaceId: string): Promise<CalendarEvent[]> {

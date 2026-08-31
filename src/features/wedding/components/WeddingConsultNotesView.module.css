@@ -262,6 +262,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* 카드 우측 상단에 삭제 버튼이 겹쳐 있으므로 배지가 그 자리를 피하도록 자리를 비운다. */
+  padding-right: 26px;
 }
 
 .vendorName {
@@ -320,4 +322,93 @@
 .item {
   margin: 2px 0;
   font-size: 13px;
+}
+
+.hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.cardWrap {
+  position: relative;
+}
+
+.cardDelete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.cardConfirm {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg, #fff);
+}
+
+.cardConfirmText {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.cardConfirmDelete {
+  border: none;
+  background: none;
+  color: #c0392b;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cardConfirmDelete:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cardConfirmCancel {
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.formDelete {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.formDeleteRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
 }

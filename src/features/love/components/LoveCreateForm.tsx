@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { IconPin, IconVideo } from '@/shared/components/ui/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
+import { usePlaceSearch } from '@/shared/lib/kakao/usePlaceSearch';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { useCreateLoveRecord, useUpdateLoveRecord } from '../hooks/useCreateLoveRecord';
 import { useLoveRecords } from '../hooks/useLoveRecords';
@@ -10,13 +10,6 @@ import styles from './LoveCreateForm.module.css';
 
 const MAX_PHOTOS = 10;
 const MAX_BODY_LENGTH = 2000;
-
-type PlaceSearchMode = 'place' | 'address';
-
-const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: string }[] = [
-  { key: 'place', label: '장소검색', placeholder: '장소 검색 (예: 반포 한강공원, 스타벅스 성수점)' },
-  { key: 'address', label: '주소검색', placeholder: '주소 검색 (예: 서초구 반포동 199, 올림픽대로 지하 91)' },
-];
 
 function nowDateValue(): string {
   return new Date().toISOString().slice(0, 10);
@@ -47,11 +40,10 @@ export function LoveCreateForm() {
   const [body, setBody] = useState('');
   const [date, setDate] = useState(nowDateValue());
   const [time, setTime] = useState(nowTimeValue());
-  const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState('');
-  const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
-  const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  const place = usePlaceSearch({
+    placePlaceholder: '장소 검색 (예: 반포 한강공원, 스타벅스 성수점)',
+    addressPlaceholder: '주소 검색 (예: 서초구 반포동 199, 올림픽대로 지하 91)',
+  });
   const [errors, setErrors] = useState<{ body?: string; placeName?: string }>({});
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
@@ -62,10 +54,10 @@ export function LoveCreateForm() {
     const recordedDate = new Date(editingRecord.recordedAt);
     setDate(recordedDate.toISOString().slice(0, 10));
     setTime(recordedDate.toTimeString().slice(0, 5));
-    setPlaceName(editingRecord.placeName);
-    if (editingRecord.lat != null && editingRecord.lng != null) {
-      setPlaceCoords({ lat: editingRecord.lat, lng: editingRecord.lng });
-    }
+    place.reset({
+      placeName: editingRecord.placeName,
+      coords: editingRecord.lat != null && editingRecord.lng != null ? { lat: editingRecord.lat, lng: editingRecord.lng } : null,
+    });
     setExistingPhotos(editingRecord.photos);
     setHasPrefilled(true);
   }, [editingRecord, hasPrefilled]);
@@ -78,33 +70,6 @@ export function LoveCreateForm() {
       if (removed) setRemovedPhotoPaths((paths) => [...paths, removed.path]);
       return prev.filter((_, i) => i !== index);
     });
-  }
-
-  // 카카오 로컬 검색 API(장소검색/주소검색)를 300ms 디바운스로 호출한다.
-  useEffect(() => {
-    const query = placeName.trim();
-    if (!query || placeCoords) {
-      setPlaceSuggestions([]);
-      return;
-    }
-    const search = placeSearchMode === 'address' ? searchKakaoAddress : searchKakaoPlaces;
-    const timer = setTimeout(() => {
-      search(query).then(setPlaceSuggestions);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [placeName, placeCoords, placeSearchMode]);
-
-  function switchPlaceSearchMode(mode: PlaceSearchMode) {
-    setPlaceSearchMode(mode);
-    setPlaceName('');
-    setPlaceCoords(null);
-    setPlaceSuggestions([]);
-  }
-
-  function selectPlace(place: KakaoPlaceResult) {
-    setPlaceName(place.placeName);
-    setPlaceCoords({ lat: place.lat, lng: place.lng });
-    setIsPlaceListOpen(false);
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -129,7 +94,7 @@ export function LoveCreateForm() {
     // 요구사항 3.2.6: 장소·날짜는 예외 없이 필수 (지도·달력 뷰가 항상 채워지도록).
     const nextErrors: typeof errors = {};
     if (!body.trim()) nextErrors.body = '내용을 입력해주세요.';
-    if (!placeName.trim()) nextErrors.placeName = '장소를 입력해주세요.';
+    if (!place.placeName.trim()) nextErrors.placeName = '장소를 입력해주세요.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -142,9 +107,9 @@ export function LoveCreateForm() {
           id: editingRecord.id,
           workspaceId,
           body: body.trim(),
-          placeName: placeName.trim(),
-          lat: placeCoords?.lat,
-          lng: placeCoords?.lng,
+          placeName: place.placeName.trim(),
+          lat: place.coords?.lat,
+          lng: place.coords?.lng,
           recordedAt,
           removedPhotoPaths,
           newPhotoFiles,
@@ -157,9 +122,9 @@ export function LoveCreateForm() {
           workspaceId,
           authorId: userId,
           body: body.trim(),
-          placeName: placeName.trim(),
-          lat: placeCoords?.lat,
-          lng: placeCoords?.lng,
+          placeName: place.placeName.trim(),
+          lat: place.coords?.lat,
+          lng: place.coords?.lng,
           recordedAt,
           photoFiles: newPhotoFiles,
         },
@@ -256,12 +221,12 @@ export function LoveCreateForm() {
           장소 <span className={styles.required}>*</span>
         </label>
         <div className={styles.placeSearchModes}>
-          {PLACE_SEARCH_MODES.map((mode) => (
+          {place.modes.map((mode) => (
             <button
               key={mode.key}
               type="button"
-              className={mode.key === placeSearchMode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
-              onClick={() => switchPlaceSearchMode(mode.key)}
+              className={mode.key === place.mode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
+              onClick={() => place.switchMode(mode.key)}
             >
               {mode.label}
             </button>
@@ -271,24 +236,20 @@ export function LoveCreateForm() {
           <input
             id="love-place"
             className={styles.input}
-            placeholder={PLACE_SEARCH_MODES.find((mode) => mode.key === placeSearchMode)!.placeholder}
-            value={placeName}
-            onChange={(event) => {
-              setPlaceName(event.target.value);
-              setPlaceCoords(null);
-              setIsPlaceListOpen(true);
-            }}
-            onFocus={() => setIsPlaceListOpen(true)}
-            onBlur={() => setTimeout(() => setIsPlaceListOpen(false), 100)}
+            placeholder={place.activePlaceholder}
+            value={place.placeName}
+            onChange={(event) => place.changeQuery(event.target.value)}
+            onFocus={() => place.setIsListOpen(true)}
+            onBlur={() => setTimeout(() => place.setIsListOpen(false), 100)}
             autoComplete="off"
           />
-          {isPlaceListOpen && placeSuggestions.length > 0 && (
+          {place.isListOpen && place.suggestions.length > 0 && (
             <ul className={styles.placeResults}>
-              {placeSuggestions.map((place) => (
-                <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
-                  <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
-                    <span className={styles.placeResultAddress}>{place.addressName}</span>
+              {place.suggestions.map((result) => (
+                <li key={`${result.placeName}-${result.lat}-${result.lng}`}>
+                  <button type="button" className={styles.placeResultItem} onMouseDown={() => place.selectPlace(result)}>
+                    <span className={styles.placeResultName}><IconPin /> {result.placeName}</span>
+                    <span className={styles.placeResultAddress}>{result.addressName}</span>
                   </button>
                 </li>
               ))}

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { IconPin } from '@/shared/components/ui/icons';
 import { useNavigate } from 'react-router-dom';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
-import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
+import { usePlaceSearch } from '@/shared/lib/kakao/usePlaceSearch';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
 import { reportFailure } from '@/shared/lib/notice/failureNotice';
@@ -11,13 +11,6 @@ import { useCreateLovePlan } from '../hooks/useCreateLovePlan';
 import styles from './LoveCreateForm.module.css';
 
 const MAX_BODY_LENGTH = 2000;
-
-type PlaceSearchMode = 'place' | 'address';
-
-const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: string }[] = [
-  { key: 'place', label: '장소검색', placeholder: '장소 검색 (예: 반포 한강공원, 스타벅스 성수점)' },
-  { key: 'address', label: '주소검색', placeholder: '주소 검색 (예: 서초구 반포동 199, 올림픽대로 지하 91)' },
-];
 
 function nowDateValue(): string {
   return new Date().toISOString().slice(0, 10);
@@ -41,10 +34,10 @@ export function LovePlanCreateForm() {
   const [body, setBody] = useState('');
   const [date, setDate] = useState(nowDateValue());
   const [time, setTime] = useState(nowTimeValue());
-  const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState('');
-  const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
-  const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  const place = usePlaceSearch({
+    placePlaceholder: '장소 검색 (예: 반포 한강공원, 스타벅스 성수점)',
+    addressPlaceholder: '주소 검색 (예: 서초구 반포동 199, 올림픽대로 지하 91)',
+  });
   const [errors, setErrors] = useState<{ body?: string; placeName?: string }>({});
   const [ackRole, setAckRole] = useState<AckRole>('partner');
 
@@ -53,44 +46,20 @@ export function LovePlanCreateForm() {
     else if (membership?.role === 'partner') setAckRole('master');
   }, [membership?.role]);
 
-  useEffect(() => {
-    const query = placeName.trim();
-    if (!query) {
-      setPlaceSuggestions([]);
-      return;
-    }
-    const search = placeSearchMode === 'address' ? searchKakaoAddress : searchKakaoPlaces;
-    const timer = setTimeout(() => {
-      search(query).then(setPlaceSuggestions);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [placeName, placeSearchMode]);
-
-  function switchPlaceSearchMode(mode: PlaceSearchMode) {
-    setPlaceSearchMode(mode);
-    setPlaceName('');
-    setPlaceSuggestions([]);
-  }
-
-  function selectPlace(place: KakaoPlaceResult) {
-    setPlaceName(place.placeName);
-    setIsPlaceListOpen(false);
-  }
-
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!workspaceId || !userId) return;
 
     const nextErrors: typeof errors = {};
     if (!body.trim()) nextErrors.body = '내용을 입력해주세요.';
-    if (!placeName.trim()) nextErrors.placeName = '장소를 입력해주세요.';
+    if (!place.placeName.trim()) nextErrors.placeName = '장소를 입력해주세요.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     const plannedAt = new Date(`${date}T${time}:00`).toISOString();
 
     createPlan(
-      { workspaceId, title: body.trim(), placeName: placeName.trim(), plannedAt },
+      { workspaceId, title: body.trim(), placeName: place.placeName.trim(), plannedAt },
       {
         onSuccess: (newId) => {
           createScheduleAck({ sourceType: 'love_plan', sourceId: newId, workspaceId, createdBy: userId, ackRole }).catch((cause) => reportFailure('일정은 저장됐지만 확인 알림 설정에 실패했어요. 일정을 수정해 확인 대상을 다시 지정해주세요.', cause));
@@ -137,12 +106,12 @@ export function LovePlanCreateForm() {
           장소 <span className={styles.required}>*</span>
         </label>
         <div className={styles.placeSearchModes}>
-          {PLACE_SEARCH_MODES.map((mode) => (
+          {place.modes.map((mode) => (
             <button
               key={mode.key}
               type="button"
-              className={mode.key === placeSearchMode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
-              onClick={() => switchPlaceSearchMode(mode.key)}
+              className={mode.key === place.mode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
+              onClick={() => place.switchMode(mode.key)}
             >
               {mode.label}
             </button>
@@ -152,23 +121,20 @@ export function LovePlanCreateForm() {
           <input
             id="love-plan-place"
             className={styles.input}
-            placeholder={PLACE_SEARCH_MODES.find((mode) => mode.key === placeSearchMode)!.placeholder}
-            value={placeName}
-            onChange={(event) => {
-              setPlaceName(event.target.value);
-              setIsPlaceListOpen(true);
-            }}
-            onFocus={() => setIsPlaceListOpen(true)}
-            onBlur={() => setTimeout(() => setIsPlaceListOpen(false), 100)}
+            placeholder={place.activePlaceholder}
+            value={place.placeName}
+            onChange={(event) => place.changeQuery(event.target.value)}
+            onFocus={() => place.setIsListOpen(true)}
+            onBlur={() => setTimeout(() => place.setIsListOpen(false), 100)}
             autoComplete="off"
           />
-          {isPlaceListOpen && placeSuggestions.length > 0 && (
+          {place.isListOpen && place.suggestions.length > 0 && (
             <ul className={styles.placeResults}>
-              {placeSuggestions.map((place) => (
-                <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
-                  <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
-                    <span className={styles.placeResultAddress}>{place.addressName}</span>
+              {place.suggestions.map((result) => (
+                <li key={`${result.placeName}-${result.lat}-${result.lng}`}>
+                  <button type="button" className={styles.placeResultItem} onMouseDown={() => place.selectPlace(result)}>
+                    <span className={styles.placeResultName}><IconPin /> {result.placeName}</span>
+                    <span className={styles.placeResultAddress}>{result.addressName}</span>
                   </button>
                 </li>
               ))}

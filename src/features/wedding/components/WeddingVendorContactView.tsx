@@ -9,7 +9,7 @@ import {
   useVendorContacts,
 } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
-import type { VendorContact } from '../types';
+import { WEDDING_CATEGORIES, type VendorContact } from '../types';
 import styles from './WeddingVendorContactView.module.css';
 
 // 업체 연락처(vendor_contact) — 상담노트와 별개로 담당자·연락처·계약정보만 간단히 관리하는 명단
@@ -25,6 +25,7 @@ export function WeddingVendorContactView() {
 
   const [editing, setEditing] = useState<VendorContact | 'new' | null>(null);
   const [vendorName, setVendorName] = useState('');
+  const [category, setCategory] = useState<VendorContact['category']>(null);
   const [managerName, setManagerName] = useState('');
   const [phone, setPhone] = useState('');
   const [contractInfo, setContractInfo] = useState('');
@@ -32,6 +33,7 @@ export function WeddingVendorContactView() {
 
   function openNew() {
     setVendorName('');
+    setCategory(null);
     setManagerName('');
     setPhone('');
     setContractInfo('');
@@ -41,6 +43,7 @@ export function WeddingVendorContactView() {
 
   function openEdit(contact: VendorContact) {
     setVendorName(contact.vendorName);
+    setCategory(contact.category);
     setManagerName(contact.managerName);
     setPhone(contact.phone);
     setContractInfo(contact.contractInfo);
@@ -52,6 +55,7 @@ export function WeddingVendorContactView() {
     if (!vendorName.trim()) return;
     const input = {
       vendorName: vendorName.trim(),
+      category,
       managerName: managerName.trim(),
       phone: phone.trim(),
       contractInfo: contractInfo.trim(),
@@ -86,6 +90,21 @@ export function WeddingVendorContactView() {
               </button>
             </div>
             <input className={styles.input} placeholder="업체명" value={vendorName} onChange={(e) => setVendorName(e.target.value)} />
+
+            <p className={styles.label}>항목</p>
+            <div className={styles.chipRow}>
+              {WEDDING_CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={c === category ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                  onClick={() => setCategory((prev) => (prev === c ? null : c))}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
             <div className={styles.formRow}>
               <input className={styles.input} placeholder="담당자" value={managerName} onChange={(e) => setManagerName(e.target.value)} />
               <input type="tel" className={styles.input} placeholder="연락처" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -124,7 +143,10 @@ export function WeddingVendorContactView() {
       <div className={styles.list}>
         {(contacts ?? []).map((contact) => (
           <button key={contact.id} type="button" className={styles.row} onClick={() => openEdit(contact)}>
-            <p className={styles.rowVendor}>{contact.vendorName}</p>
+            <p className={styles.rowVendor}>
+              {contact.vendorName}
+              {contact.category && <span className={styles.rowCategory}>{contact.category}</span>}
+            </p>
             <p className={styles.rowMeta}>
               {[contact.managerName, contact.phone, contact.contractInfo].filter(Boolean).join(' · ') || '메모 없음'}
             </p>

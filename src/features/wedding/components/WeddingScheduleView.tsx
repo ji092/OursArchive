@@ -2,41 +2,36 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useWeddingActionsHost } from '../actionsPortal';
-import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
+import { useConsultNotes, useDeleteWeddingSchedule, usePrepItems } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
-import { CalendarEventList } from '@/shared/components/schedule/CalendarEventList';
 import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
-import { filterCalendarEventsByChapter, groupCalendarEventsByDate } from '@/shared/lib/schedule/calendarEvents';
+import { buildMonthCells, monthCellDateKey, WEEKDAY_LABELS } from '@/shared/lib/schedule/calendarGrid';
+import { formatMonthDayWeekdayTime } from '@/shared/lib/date/formatDateTime';
+import {
+  calendarEventKey,
+  filterCalendarEventsByChapter,
+  filterCalendarEventsByMonth,
+  formatCalendarEventTime,
+  groupCalendarEventsByDate,
+  sortCalendarEventsForList,
+  type CalendarEvent,
+} from '@/shared/lib/schedule/calendarEvents';
 import { formatWon } from '../deriveStats';
 import type { PrepItem, WeddingEventType } from '../types';
 import { ScheduleEditModal } from './ScheduleEditModal';
 import styles from './WeddingScheduleView.module.css';
 
 export const EVENT_TYPES: WeddingEventType[] = ['상담', '계약', '청첩장모임', '본식', '기타'];
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
 export function eventTypeLabel(type: WeddingEventType): string {
   return type === '청첩장모임' ? '청모' : type;
 }
 
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
-function dateKey(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-function buildMonthCells(year: number, month: number): (number | null)[] {
-  const startWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
+// 타임라인 한 줄에 쓰는 "9월 10일 (목) 오후 2:00" — 시각이 없는 일정은 "시간 미정"으로 끝난다.
+function formatEventDateTime(event: CalendarEvent): string {
+  const date = new Date(event.startAt);
+  const day = date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+  return `${day} ${formatCalendarEventTime(event)}`;
 }
 
 export function WeddingScheduleView() {
@@ -53,6 +48,8 @@ export function WeddingScheduleView() {
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const deleteSchedule = useDeleteWeddingSchedule(workspaceId);
 
   const scheduled = useMemo(
     () =>
@@ -61,15 +58,6 @@ export function WeddingScheduleView() {
         .sort((a, b) => new Date(a.schedule!.scheduledAt).getTime() - new Date(b.schedule!.scheduledAt).getTime()),
     [items],
   );
-
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, PrepItem[]>();
-    for (const item of scheduled) {
-      const key = item.schedule!.scheduledAt.slice(0, 10);
-      map.set(key, [...(map.get(key) ?? []), item]);
-    }
-    return map;
-  }, [scheduled]);
 
   const weddingEvents = useMemo(
     () => filterCalendarEventsByChapter(allEvents ?? [], ['wedding']),
@@ -81,8 +69,11 @@ export function WeddingScheduleView() {
   const month = calendarCursor.getMonth();
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
 
-  const listItems = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : scheduled;
-  const selectedDateEvents = selectedDate ? (weddingEventsByDate.get(selectedDate) ?? []) : weddingEvents;
+  // 날짜를 고르면 그 날 안에서는 시간순, 고르지 않으면 달력이 보고 있는 달의 일정만
+  // 다가오는 것 위·지난 것 아래로 보여준다.
+  const selectedDateEvents = selectedDate
+    ? (weddingEventsByDate.get(selectedDate) ?? [])
+    : sortCalendarEventsForList(filterCalendarEventsByMonth(weddingEvents, year, month));
   const selectedItem = selectedItemId ? scheduled.find((item) => item.id === selectedItemId) : undefined;
   const selectedItemNotes = selectedItem
     ? (consultNotes ?? []).filter((note) => selectedItem.consultNoteIds.includes(note.id))
@@ -106,6 +97,7 @@ export function WeddingScheduleView() {
 
   function closeDetail() {
     setSelectedItemId(null);
+    setIsConfirmingDelete(false);
     if (searchParams.has('event')) {
       const next = new URLSearchParams(searchParams);
       next.delete('event');
@@ -114,7 +106,7 @@ export function WeddingScheduleView() {
   }
 
   function handleSelectDate(day: number) {
-    const key = dateKey(year, month, day);
+    const key = monthCellDateKey(year, month, day);
     setSelectedDate((prev) => (prev === key ? null : key));
     setSelectedItemId(null);
   }
@@ -152,7 +144,7 @@ export function WeddingScheduleView() {
             </button>
           </div>
           <div className={styles.weekdayRow}>
-            {WEEKDAYS.map((w) => (
+            {WEEKDAY_LABELS.map((w) => (
               <span key={w} className={styles.weekday}>
                 {w}
               </span>
@@ -161,7 +153,7 @@ export function WeddingScheduleView() {
           <div className={styles.calendarGrid}>
             {cells.map((day, index) => {
               if (day === null) return <span key={index} className={styles.dayCellEmpty} />;
-              const key = dateKey(year, month, day);
+              const key = monthCellDateKey(year, month, day);
               const hasEvents = weddingEventsByDate.has(key);
               const isSelected = selectedDate === key;
               return (
@@ -191,31 +183,47 @@ export function WeddingScheduleView() {
             </button>
           )}
           <div className={styles.timeline}>
-            {listItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={item.id === selectedItemId ? `${styles.timelineItem} ${styles.timelineItemActive}` : styles.timelineItem}
-                onClick={() => setSelectedItemId((prev) => (prev === item.id ? null : item.id))}
-              >
-                <span className={item.schedule!.eventType === '본식' ? `${styles.badge} ${styles.badgeMain}` : styles.badge}>
-                  {eventTypeLabel(item.schedule!.eventType)}
-                </span>
-                <span className={styles.timelineInfo}>
-                  <p className={styles.itemTitle}>{item.title}</p>
-                  <p className={styles.itemMeta}>
-                    {item.schedule!.location} · {formatDate(item.schedule!.scheduledAt)}
-                  </p>
-                </span>
-              </button>
-            ))}
-            {listItems.length === 0 && <p className={styles.empty}>등록된 일정이 없어요.</p>}
+            {/* 일정 탭 타임라인 = 결혼 챕터의 모든 일정. 일정 탭에서 만든 항목과 상담노트·신혼여행이
+                한 줄에 같이 선다(2026-08-31 — 그전에는 상담이 따로 놀았다). */}
+            {selectedDateEvents.map((event) =>
+              event.sourceType === 'wedding_schedule' ? (
+                <button
+                  key={calendarEventKey(event)}
+                  type="button"
+                  className={
+                    event.sourceId === selectedItemId ? `${styles.timelineItem} ${styles.timelineItemActive}` : styles.timelineItem
+                  }
+                  onClick={() => {
+                    setIsConfirmingDelete(false);
+                    setSelectedItemId((prev) => (prev === event.sourceId ? null : event.sourceId));
+                  }}
+                >
+                  <span className={event.badge === '본식' ? `${styles.badge} ${styles.badgeMain}` : styles.badge}>{event.badge}</span>
+                  <span className={styles.timelineInfo}>
+                    <p className={styles.itemTitle}>{event.title}</p>
+                    <p className={styles.itemMeta}>
+                      {event.location && `${event.location} · `}
+                      {formatEventDateTime(event)}
+                    </p>
+                  </span>
+                </button>
+              ) : (
+                <Link key={calendarEventKey(event)} to={event.linkTo} className={styles.timelineItem}>
+                  <span className={styles.badge}>{event.badge}</span>
+                  <span className={styles.timelineInfo}>
+                    <p className={styles.itemTitle}>{event.title}</p>
+                    <p className={styles.itemMeta}>
+                      {event.location && `${event.location} · `}
+                      {formatEventDateTime(event)}
+                    </p>
+                  </span>
+                </Link>
+              ),
+            )}
+            {selectedDateEvents.length === 0 && (
+              <p className={styles.empty}>{selectedDate ? '이 날 등록된 일정이 없어요.' : `${month + 1}월에 등록된 일정이 없어요.`}</p>
+            )}
           </div>
-          <CalendarEventList
-            events={selectedDateEvents}
-            title={selectedDate ? `${selectedDate} 결혼 일정 전체` : '결혼 일정 전체'}
-            showChapter={false}
-          />
         </div>
 
         {selectedItem && (
@@ -226,6 +234,35 @@ export function WeddingScheduleView() {
                 <button type="button" className={styles.detailAction} onClick={() => setEditingItem(selectedItem)}>
                   수정
                 </button>
+                {isConfirmingDelete ? (
+                  <>
+                    <span className={styles.detailConfirmText}>
+                      {selectedItem.checklist || selectedItem.budget ? '일정만 삭제할까요?' : '삭제할까요?'}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.detailActionDanger}
+                      disabled={deleteSchedule.isPending}
+                      onClick={() =>
+                        deleteSchedule.mutate(selectedItem.id, {
+                          onSuccess: () => {
+                            setIsConfirmingDelete(false);
+                            closeDetail();
+                          },
+                        })
+                      }
+                    >
+                      삭제
+                    </button>
+                    <button type="button" className={styles.detailAction} onClick={() => setIsConfirmingDelete(false)}>
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className={styles.detailAction} onClick={() => setIsConfirmingDelete(true)}>
+                    삭제
+                  </button>
+                )}
                 <button type="button" className={styles.detailClose} onClick={closeDetail} aria-label="닫기">
                   ✕
                 </button>
@@ -235,7 +272,7 @@ export function WeddingScheduleView() {
               {selectedItem.category} · 담당 {selectedItem.assigneeName ?? '함께'}
             </p>
             <p className={styles.detailMeta}>
-              {eventTypeLabel(selectedItem.schedule!.eventType)} · {selectedItem.schedule!.location} · {formatDate(selectedItem.schedule!.scheduledAt)}
+              {eventTypeLabel(selectedItem.schedule!.eventType)} · {selectedItem.schedule!.location} · {formatMonthDayWeekdayTime(selectedItem.schedule!.scheduledAt)}
             </p>
             {selectedItem.checklist && (
               <p className={styles.detailMeta}>

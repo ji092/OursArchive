@@ -45,6 +45,7 @@ export interface ConsultNote {
   vendorType: WeddingCategory; // 체크리스트와 같은 카테고리 목록을 그대로 드롭다운으로 선택 (2026-07-24 사용자 지정)
   contactPhone: string; // 담당자 연락처
   visitDate: string;
+  visitTime: string | null; // 'HH:MM' — 상담노트가 곧 상담 일정이라 시각까지 받는다(2026-08-31). null이면 시간 미정.
   status: 'done' | 'scheduled';
   keyMemos: string[];
   questions: string[];
@@ -81,6 +82,7 @@ export interface Honeymoon {
 export interface VendorContact {
   id: string;
   vendorName: string;
+  category: WeddingCategory | null; // 상담노트에서 자동 생성될 때 노트의 항목을 그대로 받는다(2026-09-01)
   managerName: string;
   phone: string;
   contractInfo: string;

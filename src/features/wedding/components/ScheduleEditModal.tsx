@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { IconPin } from '@/shared/components/ui/icons';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
-import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
+import { usePlaceSearch } from '@/shared/lib/kakao/usePlaceSearch';
 import {
   useConsultNotes,
   useCreatePrepItem,
@@ -17,13 +18,6 @@ import type { AckRole } from '@/shared/lib/schedule/types';
 import type { PrepItem, WeddingEventType } from '../types';
 import { EVENT_TYPES, eventTypeLabel } from './WeddingScheduleView';
 import styles from './ScheduleEditModal.module.css';
-
-type PlaceSearchMode = 'place' | 'address';
-
-const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: string }[] = [
-  { key: 'place', label: '장소검색', placeholder: '장소 검색 (예: 논현 W웨딩홀)' },
-  { key: 'address', label: '주소검색', placeholder: '주소 검색 (예: 강남구 논현동 200)' },
-];
 
 export interface ScheduleEditModalProps {
   item?: PrepItem; // 넘기면 수정 모드
@@ -64,12 +58,11 @@ export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
   const [eventType, setEventType] = useState<WeddingEventType>(item?.schedule?.eventType ?? '상담');
   const [date, setDate] = useState(item?.schedule ? toLocalDateValue(item.schedule.scheduledAt) : toLocalDateValue(new Date().toISOString()));
   const [time, setTime] = useState(item?.schedule ? toLocalTimeValue(item.schedule.scheduledAt) : '10:00');
-  const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState(item?.schedule?.location ?? '');
-  const [placeAddress, setPlaceAddress] = useState('');
-  const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
-  const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  const place = usePlaceSearch({
+    placePlaceholder: '장소 검색 (예: 논현 W웨딩홀)',
+    addressPlaceholder: '주소 검색 (예: 강남구 논현동 200)',
+    initial: { placeName: item?.schedule?.location ?? '' },
+  });
   const [consultNoteIds, setConsultNoteIds] = useState<string[]>(item?.consultNoteIds ?? []);
   const [ackRole, setAckRole] = useState<AckRole>('partner');
 
@@ -77,34 +70,6 @@ export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
     if (myMembership?.role === 'master') setAckRole('partner');
     else if (myMembership?.role === 'partner') setAckRole('master');
   }, [myMembership?.role]);
-
-  useEffect(() => {
-    const query = placeName.trim();
-    if (!query || placeCoords) {
-      setPlaceSuggestions([]);
-      return;
-    }
-    const search = placeSearchMode === 'address' ? searchKakaoAddress : searchKakaoPlaces;
-    const timer = setTimeout(() => {
-      search(query).then(setPlaceSuggestions);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [placeName, placeCoords, placeSearchMode]);
-
-  function switchPlaceSearchMode(mode: PlaceSearchMode) {
-    setPlaceSearchMode(mode);
-    setPlaceName('');
-    setPlaceAddress('');
-    setPlaceCoords(null);
-    setPlaceSuggestions([]);
-  }
-
-  function selectPlace(place: KakaoPlaceResult) {
-    setPlaceName(place.placeName);
-    setPlaceAddress(place.addressName);
-    setPlaceCoords({ lat: place.lat, lng: place.lng });
-    setIsPlaceListOpen(false);
-  }
 
   function toggleConsultNote(id: string) {
     setConsultNoteIds((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]));
@@ -126,8 +91,8 @@ export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
 
   function handleSubmit() {
     const userId = session?.user.id;
-    if (!title.trim() || !placeName.trim() || !workspaceId || !userId) return;
-    const schedule = { scheduledAt: new Date(`${date}T${time}:00`).toISOString(), location: placeName.trim(), eventType };
+    if (!title.trim() || !place.placeName.trim() || !workspaceId || !userId) return;
+    const schedule = { scheduledAt: new Date(`${date}T${time}:00`).toISOString(), location: place.placeName.trim(), eventType };
 
     function ack(sourceId: string) {
       createScheduleAck({ sourceType: 'wedding_schedule', sourceId, workspaceId: workspaceId!, createdBy: userId!, ackRole }).catch((cause) => reportFailure('일정은 저장됐지만 확인 알림 설정에 실패했어요. 일정을 수정해 확인 대상을 다시 지정해주세요.', cause));
@@ -204,6 +169,13 @@ export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
           ))}
         </div>
 
+        {eventType === '상담' && !isEditing && (
+          <p className={styles.hint}>
+            업체 상담이면 <Link to="/wedding/consult-notes">상담노트</Link>에 적는 편이 낫습니다 — 메모·질문·사진까지 한 곳에
+            남고, 같은 일정으로 이 탭과 메인 달력에 함께 나옵니다.
+          </p>
+        )}
+
         <div className={styles.row}>
           <div className={styles.field}>
             <label className={styles.label}>날짜</label>
@@ -217,12 +189,12 @@ export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
 
         <label className={styles.label}>장소</label>
         <div className={styles.placeSearchModes}>
-          {PLACE_SEARCH_MODES.map((mode) => (
+          {place.modes.map((mode) => (
             <button
               key={mode.key}
               type="button"
-              className={mode.key === placeSearchMode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
-              onClick={() => switchPlaceSearchMode(mode.key)}
+              className={mode.key === place.mode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
+              onClick={() => place.switchMode(mode.key)}
             >
               {mode.label}
             </button>
@@ -231,34 +203,29 @@ export function ScheduleEditModal({ item, onClose }: ScheduleEditModalProps) {
         <div className={styles.placeSearch}>
           <input
             className={styles.input}
-            placeholder={PLACE_SEARCH_MODES.find((mode) => mode.key === placeSearchMode)!.placeholder}
-            value={placeName}
-            onChange={(event) => {
-              setPlaceName(event.target.value);
-              setPlaceAddress('');
-              setPlaceCoords(null);
-              setIsPlaceListOpen(true);
-            }}
-            onFocus={() => setIsPlaceListOpen(true)}
-            onBlur={() => setTimeout(() => setIsPlaceListOpen(false), 100)}
+            placeholder={place.activePlaceholder}
+            value={place.placeName}
+            onChange={(event) => place.changeQuery(event.target.value)}
+            onFocus={() => place.setIsListOpen(true)}
+            onBlur={() => setTimeout(() => place.setIsListOpen(false), 100)}
             autoComplete="off"
           />
-          {isPlaceListOpen && placeSuggestions.length > 0 && (
+          {place.isListOpen && place.suggestions.length > 0 && (
             <ul className={styles.placeResults}>
-              {placeSuggestions.map((place) => (
-                <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
-                  <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
-                    <span className={styles.placeResultAddress}>{place.addressName}</span>
+              {place.suggestions.map((result) => (
+                <li key={`${result.placeName}-${result.lat}-${result.lng}`}>
+                  <button type="button" className={styles.placeResultItem} onMouseDown={() => place.selectPlace(result)}>
+                    <span className={styles.placeResultName}><IconPin /> {result.placeName}</span>
+                    <span className={styles.placeResultAddress}>{result.addressName}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </div>
-        {placeAddress && <p className={styles.addressText}><IconPin /> {placeAddress}</p>}
-        {placeCoords && (
-          <KakaoMap markers={[{ id: 'selected', lat: placeCoords.lat, lng: placeCoords.lng }]} className={styles.mapPreview} />
+        {place.address && <p className={styles.addressText}><IconPin /> {place.address}</p>}
+        {place.coords && (
+          <KakaoMap markers={[{ id: 'selected', lat: place.coords.lat, lng: place.coords.lng }]} className={styles.mapPreview} />
         )}
 
         <label className={styles.label}>연결된 상담노트 (선택)</label>

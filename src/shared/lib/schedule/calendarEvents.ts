@@ -39,12 +39,17 @@ export function calendarEventKey(event: CalendarEvent): string {
   return `${event.sourceType}:${event.sourceId}`;
 }
 
-// 달력 셀은 사용자의 로컬 날짜 기준으로 묶는다 — ISO 문자열 앞 10자를 그냥 자르면
-// UTC 기준이라 밤 9시 이후 일정이 하루 뒤 칸에 찍힌다.
-export function calendarEventDateKey(event: CalendarEvent): string {
-  const date = new Date(event.startAt);
+// 달력 셀은 사용자의 로컬 날짜 기준으로 묶는다 — ISO 문자열 앞 10자를 그냥 자르면 UTC 기준이라
+// 한국 시간 오전 9시 이전 일정이 하루 앞 칸으로 밀린다(오전 8시 일정이 전날에 찍히던 문제,
+// 2026-08-31 확인). 달력 그리드가 만드는 키(년-월-일)와 같은 규칙을 쓰려면 이 함수를 거쳐야 한다.
+export function localDateKey(iso: string): string {
+  const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+export function calendarEventDateKey(event: CalendarEvent): string {
+  return localDateKey(event.startAt);
 }
 
 // 시간 있는 일정이 먼저, 같은 시각이면 제목순 — 렌더 순서가 매번 흔들리지 않게 고정한다.
@@ -54,6 +59,27 @@ export function sortCalendarEvents(events: CalendarEvent[]): CalendarEvent[] {
     if (diff !== 0) return diff;
     return a.title.localeCompare(b.title, 'ko');
   });
+}
+
+// 달력 옆 목록은 달력이 보고 있는 달만 보여준다(2026-08-31 사용자 지정) — 달을 넘기면 목록도 같이 넘어간다.
+export function filterCalendarEventsByMonth(events: CalendarEvent[], year: number, month: number): CalendarEvent[] {
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+  return events.filter((event) => calendarEventDateKey(event).startsWith(prefix));
+}
+
+// 목록(달력 옆 타임라인)용 정렬: 다가오는 일정이 위, 지난 일정이 아래(2026-08-31 사용자 지정).
+// 다가오는 것은 가까운 날짜부터, 지난 것은 최근에 지난 것부터 내려간다. 기준은 "오늘 0시"라
+// 오늘 일정은 시각이 지났어도 위에 남는다.
+export function sortCalendarEventsForList(events: CalendarEvent[], now: Date = new Date()): CalendarEvent[] {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const upcoming: CalendarEvent[] = [];
+  const past: CalendarEvent[] = [];
+  for (const event of events) {
+    const time = new Date(event.startAt).getTime();
+    if (Number.isNaN(time) || time >= todayStart) upcoming.push(event);
+    else past.push(event);
+  }
+  return [...sortCalendarEvents(upcoming), ...sortCalendarEvents(past).reverse()];
 }
 
 export function groupCalendarEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {

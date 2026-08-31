@@ -120,7 +120,7 @@ export default function DashboardPage() {
         <h2 className={styles.recentTitle}>
           우리 <span className={styles.titleAccent}>일정,</span>
         </h2>
-        <LoveCalendarView />
+        <LoveCalendarView includeOtherChapters />
       </section>
 
       <section className={styles.recent}>

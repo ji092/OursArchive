@@ -5,7 +5,15 @@ import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { CalendarEventList } from '@/shared/components/schedule/CalendarEventList';
 import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
-import { filterCalendarEventsByChapter, groupCalendarEventsByDate } from '@/shared/lib/schedule/calendarEvents';
+import { buildMonthCells, monthCellDateKey, WEEKDAY_LABELS } from '@/shared/lib/schedule/calendarGrid';
+import { formatMonthDayWeekdayTime } from '@/shared/lib/date/formatDateTime';
+import {
+  filterCalendarEventsByChapter,
+  filterCalendarEventsByMonth,
+  groupCalendarEventsByDate,
+  localDateKey,
+  sortCalendarEventsForList,
+} from '@/shared/lib/schedule/calendarEvents';
 import { usePregnancyActionsHost } from '../actionsPortal';
 import { useDeleteEvent, useDiaries, useEvents } from '../hooks/usePregnancyData';
 import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
@@ -14,27 +22,6 @@ import { PregnancyEventEditModal } from './PregnancyEventEditModal';
 import styles from './PregnancyScheduleView.module.css';
 
 export const EVENT_TYPES: PregnancyEventType[] = ['태교', '모임', '쇼핑', '기타'];
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
-function dateKey(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-function buildMonthCells(year: number, month: number): (number | null)[] {
-  const startWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
-}
-
 // 결혼(하나가) 챕터의 WeddingScheduleView와 동일한 달력+리스트+상세패널 구조 — 색상만
 // 셋이 챕터의 시그니처(코랄)를 그대로 이어받는다(PregnancyLayout의 --color-accent). 체크리스트/
 // 상담노트 연결처럼 임신 챕터에 아직 없는 개념은 뺐다.
@@ -62,7 +49,7 @@ export function PregnancyScheduleView() {
   const eventsByDate = useMemo(() => {
     const map = new Map<string, PregnancyEvent[]>();
     for (const event of scheduled) {
-      const key = event.scheduledAt.slice(0, 10);
+      const key = localDateKey(event.scheduledAt);
       map.set(key, [...(map.get(key) ?? []), event]);
     }
     return map;
@@ -71,7 +58,7 @@ export function PregnancyScheduleView() {
   const diariesByDate = useMemo(() => {
     const map = new Map<string, PregnancyDiary[]>();
     for (const diary of diaries ?? []) {
-      const key = diary.recordedAt.slice(0, 10);
+      const key = localDateKey(diary.recordedAt);
       map.set(key, [...(map.get(key) ?? []), diary]);
     }
     return map;
@@ -85,10 +72,14 @@ export function PregnancyScheduleView() {
   const month = calendarCursor.getMonth();
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
 
-  const listItems = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : scheduled;
+  const listItems = selectedDate
+    ? (eventsByDate.get(selectedDate) ?? [])
+    : scheduled.filter((event) => localDateKey(event.scheduledAt).startsWith(`${year}-${String(month + 1).padStart(2, '0')}`));
   const selectedEvent = selectedEventId ? scheduled.find((event) => event.id === selectedEventId) : undefined;
   const selectedDateDiaries = selectedDate ? (diariesByDate.get(selectedDate) ?? []) : [];
-  const selectedDateEvents = selectedDate ? (pregnancyEventsByDate.get(selectedDate) ?? []) : pregnancyEvents;
+  const selectedDateEvents = selectedDate
+    ? (pregnancyEventsByDate.get(selectedDate) ?? [])
+    : sortCalendarEventsForList(filterCalendarEventsByMonth(pregnancyEvents, year, month));
 
   // 다른 달력(메인/연애)에서 임신 일정을 누르면 /pregnancy/schedule?event=<id>로 들어온다.
   const requestedEventId = searchParams.get('event');
@@ -116,7 +107,7 @@ export function PregnancyScheduleView() {
   }
 
   function handleSelectDate(day: number) {
-    const key = dateKey(year, month, day);
+    const key = monthCellDateKey(year, month, day);
     setSelectedDate((prev) => (prev === key ? null : key));
     setSelectedEventId(null);
   }
@@ -154,7 +145,7 @@ export function PregnancyScheduleView() {
             </button>
           </div>
           <div className={styles.weekdayRow}>
-            {WEEKDAYS.map((w) => (
+            {WEEKDAY_LABELS.map((w) => (
               <span key={w} className={styles.weekday}>
                 {w}
               </span>
@@ -163,7 +154,7 @@ export function PregnancyScheduleView() {
           <div className={styles.calendarGrid}>
             {cells.map((day, index) => {
               if (day === null) return <span key={index} className={styles.dayCellEmpty} />;
-              const key = dateKey(year, month, day);
+              const key = monthCellDateKey(year, month, day);
               const hasEvents = pregnancyEventsByDate.has(key);
               const hasAlbumPhoto = albumDateKeys.has(key);
               const isSelected = selectedDate === key;
@@ -202,12 +193,14 @@ export function PregnancyScheduleView() {
                 <span className={styles.timelineInfo}>
                   <p className={styles.itemTitle}>{event.title}</p>
                   <p className={styles.itemMeta}>
-                    {event.location} · {formatDate(event.scheduledAt)}
+                    {event.location} · {formatMonthDayWeekdayTime(event.scheduledAt)}
                   </p>
                 </span>
               </button>
             ))}
-            {listItems.length === 0 && <p className={styles.empty}>등록된 일정이 없어요.</p>}
+            {listItems.length === 0 && (
+              <p className={styles.empty}>{selectedDate ? '이 날 등록된 일정이 없어요.' : `${month + 1}월에 등록된 일정이 없어요.`}</p>
+            )}
           </div>
 
           <CalendarEventList
@@ -245,7 +238,7 @@ export function PregnancyScheduleView() {
               </button>
             </div>
             <p className={styles.detailMeta}>
-              {selectedEvent.eventType} · {selectedEvent.location} · {formatDate(selectedEvent.scheduledAt)}
+              {selectedEvent.eventType} · {selectedEvent.location} · {formatMonthDayWeekdayTime(selectedEvent.scheduledAt)}
             </p>
             <div className={styles.detailActions}>
               <button type="button" className={styles.detailActionButton} onClick={() => setEditingEvent(selectedEvent)}>

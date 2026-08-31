@@ -1,5 +1,6 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
 import { deleteScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import { deleteContentPhotos, resolveContentPhotoUrls, rollbackUploadedPhotos, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
 import type { ConsultNote, Expense, Honeymoon, HoneymoonDay, PaymentMethod, PrepItem, VendorContact, WeddingEventType } from './types';
 
@@ -127,7 +128,8 @@ export interface UpdatePrepItemInput {
   patch: PrepItemPatch;
 }
 
-export async function fetchPrepItem(id: string): Promise<PrepItem> {
+// 이 파일 안에서 patch 병합·삭제 판단에만 쓴다(외부로 내보내지 않는다).
+async function fetchPrepItem(id: string): Promise<PrepItem> {
   const { data, error } = await supabase.from('prep_item').select(PREP_ITEM_SELECT).eq('id', id).single();
   if (error) throw error;
   return mapPrepItemRow(data, new Map());
@@ -183,7 +185,7 @@ export async function toggleChecklistDone(id: string): Promise<void> {
 export async function fetchConsultNotes(workspaceId: string): Promise<ConsultNote[]> {
   const { data, error } = await supabase
     .from('consult_note')
-    .select('id, vendor_name, vendor_type, contact_phone, visit_date, status, key_memos, questions, address, lat, lng')
+    .select('id, vendor_name, vendor_type, contact_phone, visit_date, visit_time, status, key_memos, questions, address, lat, lng')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -209,6 +211,7 @@ export async function fetchConsultNotes(workspaceId: string): Promise<ConsultNot
     vendorType: n.vendor_type,
     contactPhone: n.contact_phone,
     visitDate: n.visit_date,
+    visitTime: n.visit_time ? String(n.visit_time).slice(0, 5) : null,
     status: n.status,
     keyMemos: Array.isArray(n.key_memos) ? n.key_memos : [],
     questions: Array.isArray(n.questions) ? n.questions : [],
@@ -225,6 +228,7 @@ export interface CreateConsultNoteInput {
   vendorType: ConsultNote['vendorType'];
   contactPhone: string;
   visitDate: string;
+  visitTime: string | null;
   status: ConsultNote['status'];
   keyMemos: string[];
   questions: string[];
@@ -243,6 +247,7 @@ export async function createConsultNote(input: CreateConsultNoteInput): Promise<
       vendor_type: input.vendorType,
       contact_phone: input.contactPhone,
       visit_date: input.visitDate,
+      visit_time: input.visitTime,
       status: input.status,
       key_memos: input.keyMemos,
       questions: input.questions,
@@ -253,6 +258,16 @@ export async function createConsultNote(input: CreateConsultNoteInput): Promise<
     .select('id')
     .single();
   if (error) throw error;
+
+  // 노트는 이미 저장됐으므로 연락처 동기화가 실패해도 저장을 되돌리지 않는다 — 대신 사용자에게 알린다
+  // (CLAUDE.md — 되돌릴 수 없는 실패는 재시도가 아니라 알림 대상).
+  await syncVendorContactFromConsultNote({
+    workspaceId: input.workspaceId,
+    consultNoteId: note.id,
+    vendorName: input.vendorName,
+    category: input.vendorType,
+    phone: input.contactPhone,
+  }).catch((cause) => reportFailure('상담노트는 저장됐지만 업체 연락처 카드를 만들지 못했어요. 업체 연락처에서 직접 추가해주세요.', cause));
 
   if (input.photoFiles.length > 0) {
     const paths = await uploadContentPhotos(input.workspaceId, 'consult_note', note.id, input.photoFiles);
@@ -275,6 +290,7 @@ export interface UpdateConsultNoteInput {
     vendorType: ConsultNote['vendorType'];
     contactPhone: string;
     visitDate: string;
+    visitTime: string | null;
     status: ConsultNote['status'];
     keyMemos: string[];
     questions: string[];
@@ -294,6 +310,7 @@ export async function updateConsultNote({ id, workspaceId, patch, removedPhotoPa
       vendor_type: patch.vendorType,
       contact_phone: patch.contactPhone,
       visit_date: patch.visitDate,
+      visit_time: patch.visitTime,
       status: patch.status,
       key_memos: patch.keyMemos,
       questions: patch.questions,
@@ -303,6 +320,16 @@ export async function updateConsultNote({ id, workspaceId, patch, removedPhotoPa
     })
     .eq('id', id);
   if (error) throw error;
+
+  if (patch.vendorName !== undefined && patch.vendorType !== undefined && patch.contactPhone !== undefined) {
+    await syncVendorContactFromConsultNote({
+      workspaceId,
+      consultNoteId: id,
+      vendorName: patch.vendorName,
+      category: patch.vendorType,
+      phone: patch.contactPhone,
+    }).catch((cause) => reportFailure('상담노트는 저장됐지만 업체 연락처 카드를 갱신하지 못했어요. 업체 연락처에서 직접 고쳐주세요.', cause));
+  }
 
   if (removedPhotoPaths.length > 0) {
     await supabase.from('attachment').delete().in('file_url', removedPhotoPaths);
@@ -319,6 +346,73 @@ export async function updateConsultNote({ id, workspaceId, patch, removedPhotoPa
       throw attachError;
     }
   }
+}
+
+// 상담노트 삭제 — 노트 행, 붙어 있던 사진(attachment 행 + Storage 파일), 일정 항목과의 연결을
+// 함께 정리한다. prep_item_consult_note는 consult_note FK가 on delete cascade라 자동으로 지워진다.
+// 순서: Storage 파일 → attachment 행 → 노트 행. 중간에 실패하면 노트는 남고 사용자가 다시 시도할 수
+// 있다(반대 순서면 노트만 사라지고 아무도 참조하지 않는 파일이 남는다).
+export async function deleteConsultNote(id: string): Promise<void> {
+  const { data: attachments, error: attachmentError } = await supabase
+    .from('attachment')
+    .select('file_url')
+    .eq('link_type', 'consult')
+    .eq('link_id', id);
+  if (attachmentError) throw attachmentError;
+
+  const paths = (attachments ?? []).map((a) => a.file_url);
+  if (paths.length > 0) {
+    await deleteContentPhotos(paths);
+    const { error: rowError } = await supabase.from('attachment').delete().eq('link_type', 'consult').eq('link_id', id);
+    if (rowError) throw rowError;
+  }
+
+  const { error } = await supabase.from('consult_note').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// 상담노트에 연락처를 적으면 업체 연락처 카드가 자동으로 생긴다(2026-09-01 사용자 지정).
+// 카드 이름 = 상담노트의 업체명, 항목 = 노트의 카테고리, 전화 = 노트의 담당자 연락처.
+// 같은 노트로 이미 만들어진 카드가 있으면 새로 만들지 않고 그 카드를 갱신한다 —
+// 노트를 고칠 때마다 카드가 늘어나면 명단이 금방 못 쓰게 된다.
+// 담당자·계약 정보는 카드에서 따로 채우는 값이라 건드리지 않는다.
+async function syncVendorContactFromConsultNote(input: {
+  workspaceId: string;
+  consultNoteId: string;
+  vendorName: string;
+  category: ConsultNote['vendorType'];
+  phone: string;
+}): Promise<void> {
+  const { data: existing, error } = await supabase
+    .from('vendor_contact')
+    .select('id')
+    .eq('workspace_id', input.workspaceId)
+    .eq('consult_note_id', input.consultNoteId)
+    .maybeSingle();
+  if (error) throw error;
+
+  if (existing) {
+    const { error: updateError } = await supabase
+      .from('vendor_contact')
+      .update({ vendor_name: input.vendorName, category: input.category, phone: input.phone })
+      .eq('id', existing.id);
+    if (updateError) throw updateError;
+    return;
+  }
+
+  // 연락처가 비어 있으면 카드를 새로 만들지 않는다. 이미 있는 카드는 위에서 갱신된다.
+  if (!input.phone.trim()) return;
+
+  const { error: insertError } = await supabase.from('vendor_contact').insert({
+    workspace_id: input.workspaceId,
+    vendor_name: input.vendorName,
+    category: input.category,
+    manager_name: '',
+    phone: input.phone,
+    contract_info: '',
+    consult_note_id: input.consultNoteId,
+  });
+  if (insertError) throw insertError;
 }
 
 export async function fetchHoneymoon(workspaceId: string): Promise<Honeymoon | null> {
@@ -412,13 +506,14 @@ export async function saveHoneymoonDayPhotos(
 export async function fetchVendorContacts(workspaceId: string): Promise<VendorContact[]> {
   const { data, error } = await supabase
     .from('vendor_contact')
-    .select('id, vendor_name, manager_name, phone, contract_info, consult_note_id')
+    .select('id, vendor_name, category, manager_name, phone, contract_info, consult_note_id')
     .eq('workspace_id', workspaceId)
     .order('vendor_name', { ascending: true });
   if (error) throw error;
   return (data ?? []).map((v) => ({
     id: v.id,
     vendorName: v.vendor_name,
+    category: v.category ?? null,
     managerName: v.manager_name ?? '',
     phone: v.phone ?? '',
     contractInfo: v.contract_info ?? '',
@@ -428,6 +523,7 @@ export async function fetchVendorContacts(workspaceId: string): Promise<VendorCo
 
 export interface SaveVendorContactInput {
   vendorName: string;
+  category: VendorContact['category'];
   managerName: string;
   phone: string;
   contractInfo: string;
@@ -438,6 +534,7 @@ export async function createVendorContact(workspaceId: string, input: SaveVendor
   const { error } = await supabase.from('vendor_contact').insert({
     workspace_id: workspaceId,
     vendor_name: input.vendorName,
+    category: input.category,
     manager_name: input.managerName,
     phone: input.phone,
     contract_info: input.contractInfo,
@@ -451,6 +548,7 @@ export async function updateVendorContact(id: string, input: SaveVendorContactIn
     .from('vendor_contact')
     .update({
       vendor_name: input.vendorName,
+      category: input.category,
       manager_name: input.managerName,
       phone: input.phone,
       contract_info: input.contractInfo,

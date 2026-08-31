@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { IconPin } from '@/shared/components/ui/icons';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
-import { searchKakaoAddress, searchKakaoPlaces, type KakaoPlaceResult } from '@/shared/lib/kakao/kakaoPlaceSearch';
+import { usePlaceSearch } from '@/shared/lib/kakao/usePlaceSearch';
 import { useCreateEvent, useUpdateEvent } from '../hooks/usePregnancyData';
 import { useCurrentWorkspaceId, useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
@@ -11,13 +11,6 @@ import type { AckRole } from '@/shared/lib/schedule/types';
 import type { PregnancyEvent, PregnancyEventType } from '../types';
 import { EVENT_TYPES } from './PregnancyScheduleView';
 import styles from './PregnancyEventEditModal.module.css';
-
-type PlaceSearchMode = 'place' | 'address';
-
-const PLACE_SEARCH_MODES: { key: PlaceSearchMode; label: string; placeholder: string }[] = [
-  { key: 'place', label: '장소검색', placeholder: '장소 검색 (예: 분당 맘스요가)' },
-  { key: 'address', label: '주소검색', placeholder: '주소 검색 (예: 분당구 정자동 100)' },
-];
 
 export interface PregnancyEventEditModalProps {
   event?: PregnancyEvent;
@@ -37,12 +30,11 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
   const [eventType, setEventType] = useState<PregnancyEventType>(event?.eventType ?? '태교');
   const [date, setDate] = useState(event ? event.scheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(event ? event.scheduledAt.slice(11, 16) : '10:00');
-  const [placeSearchMode, setPlaceSearchMode] = useState<PlaceSearchMode>('place');
-  const [placeName, setPlaceName] = useState(event?.location ?? '');
-  const [placeAddress, setPlaceAddress] = useState('');
-  const [placeCoords, setPlaceCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isPlaceListOpen, setIsPlaceListOpen] = useState(false);
-  const [placeSuggestions, setPlaceSuggestions] = useState<KakaoPlaceResult[]>([]);
+  const place = usePlaceSearch({
+    placePlaceholder: '장소 검색 (예: 분당 맘스요가)',
+    addressPlaceholder: '주소 검색 (예: 분당구 정자동 100)',
+    initial: { placeName: event?.location ?? '' },
+  });
   const [ackRole, setAckRole] = useState<AckRole>('partner');
 
   useEffect(() => {
@@ -50,42 +42,15 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
     else if (myMembership?.role === 'partner') setAckRole('master');
   }, [myMembership?.role]);
 
-  useEffect(() => {
-    const query = placeName.trim();
-    if (!query || placeCoords) {
-      setPlaceSuggestions([]);
-      return;
-    }
-    const search = placeSearchMode === 'address' ? searchKakaoAddress : searchKakaoPlaces;
-    const timer = setTimeout(() => {
-      search(query).then(setPlaceSuggestions);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [placeName, placeCoords, placeSearchMode]);
-
-  function switchPlaceSearchMode(mode: PlaceSearchMode) {
-    setPlaceSearchMode(mode);
-    setPlaceName('');
-    setPlaceAddress('');
-    setPlaceCoords(null);
-    setPlaceSuggestions([]);
-  }
-
-  function selectPlace(place: KakaoPlaceResult) {
-    setPlaceName(place.placeName);
-    setPlaceAddress(place.addressName);
-    setPlaceCoords({ lat: place.lat, lng: place.lng });
-    setIsPlaceListOpen(false);
-  }
 
   function handleSubmit() {
     const userId = session?.user.id;
-    if (!title.trim() || !placeName.trim() || !workspaceId || !userId) return;
+    if (!title.trim() || !place.placeName.trim() || !workspaceId || !userId) return;
     const input = {
       title: title.trim(),
       eventType,
       scheduledAt: new Date(`${date}T${time}:00`).toISOString(),
-      location: placeName.trim(),
+      location: place.placeName.trim(),
     };
 
     function ack(sourceId: string) {
@@ -139,12 +104,12 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
 
         <label className={styles.label}>장소</label>
         <div className={styles.placeSearchModes}>
-          {PLACE_SEARCH_MODES.map((mode) => (
+          {place.modes.map((mode) => (
             <button
               key={mode.key}
               type="button"
-              className={mode.key === placeSearchMode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
-              onClick={() => switchPlaceSearchMode(mode.key)}
+              className={mode.key === place.mode ? `${styles.placeSearchMode} ${styles.placeSearchModeActive}` : styles.placeSearchMode}
+              onClick={() => place.switchMode(mode.key)}
             >
               {mode.label}
             </button>
@@ -153,34 +118,29 @@ export function PregnancyEventEditModal({ event, onClose }: PregnancyEventEditMo
         <div className={styles.placeSearch}>
           <input
             className={styles.input}
-            placeholder={PLACE_SEARCH_MODES.find((mode) => mode.key === placeSearchMode)!.placeholder}
-            value={placeName}
-            onChange={(event) => {
-              setPlaceName(event.target.value);
-              setPlaceAddress('');
-              setPlaceCoords(null);
-              setIsPlaceListOpen(true);
-            }}
-            onFocus={() => setIsPlaceListOpen(true)}
-            onBlur={() => setTimeout(() => setIsPlaceListOpen(false), 100)}
+            placeholder={place.activePlaceholder}
+            value={place.placeName}
+            onChange={(event) => place.changeQuery(event.target.value)}
+            onFocus={() => place.setIsListOpen(true)}
+            onBlur={() => setTimeout(() => place.setIsListOpen(false), 100)}
             autoComplete="off"
           />
-          {isPlaceListOpen && placeSuggestions.length > 0 && (
+          {place.isListOpen && place.suggestions.length > 0 && (
             <ul className={styles.placeResults}>
-              {placeSuggestions.map((place) => (
-                <li key={`${place.placeName}-${place.lat}-${place.lng}`}>
-                  <button type="button" className={styles.placeResultItem} onMouseDown={() => selectPlace(place)}>
-                    <span className={styles.placeResultName}><IconPin /> {place.placeName}</span>
-                    <span className={styles.placeResultAddress}>{place.addressName}</span>
+              {place.suggestions.map((result) => (
+                <li key={`${result.placeName}-${result.lat}-${result.lng}`}>
+                  <button type="button" className={styles.placeResultItem} onMouseDown={() => place.selectPlace(result)}>
+                    <span className={styles.placeResultName}><IconPin /> {result.placeName}</span>
+                    <span className={styles.placeResultAddress}>{result.addressName}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </div>
-        {placeAddress && <p className={styles.addressText}><IconPin /> {placeAddress}</p>}
-        {placeCoords && (
-          <KakaoMap markers={[{ id: 'selected', lat: placeCoords.lat, lng: placeCoords.lng }]} className={styles.mapPreview} />
+        {place.address && <p className={styles.addressText}><IconPin /> {place.address}</p>}
+        {place.coords && (
+          <KakaoMap markers={[{ id: 'selected', lat: place.coords.lat, lng: place.coords.lng }]} className={styles.mapPreview} />
         )}
 
         <AckRoleSelect value={ackRole} onChange={setAckRole} />
