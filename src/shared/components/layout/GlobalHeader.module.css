@@ -1,7 +1,9 @@
+/* 화면 맨 위에 붙인다. 예전에는 띄운 모양을 내려고 top/margin-top이 12px이었는데, 그 틈으로
+   스크롤되는 본문이 지나가 헤더 위·오른쪽에 글씨가 비쳐 보였다(2026-09-03 사용자 보고,
+   휴대폰·데스크톱 양쪽). 틈을 없애 헤더가 본문을 완전히 덮게 한다. */
 .header {
   position: sticky;
-  top: 12px;
-  margin-top: 12px;
+  top: 0;
   z-index: 100;
   background: var(--color-bg);
 }

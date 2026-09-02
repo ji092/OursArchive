@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useCreatePrepItem, usePrepItems, useUpdatePrepItem } from '../hooks/useWeddingData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import type { PrepItem, WeddingCategory } from '../types';
 import { buildBudget, CATEGORIES, PrepItemEditForm, toPrepItemPatch, type PrepItemEditFormValues } from './PrepItemEditForm';
 import { PrepItemRow } from './PrepItemRow';
+import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import styles from './WeddingChecklistView.module.css';
 
 type SortMode = 'all' | 'category' | 'date';
@@ -44,6 +46,7 @@ const SORT_OPTIONS: { mode: SortMode; label: string; icon: () => JSX.Element }[]
 
 export function WeddingChecklistView() {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
   const { data: items } = usePrepItems(workspaceId);
   const createItem = useCreatePrepItem(workspaceId);
   const updateItem = useUpdatePrepItem(workspaceId);
@@ -60,6 +63,20 @@ export function WeddingChecklistView() {
   }
 
   function handleSubmit(values: PrepItemEditFormValues) {
+    const userId = session?.user.id;
+    // 체크리스트 기한도 알림 대상 일정이다(2026-09-03). 항목은 이미 저장된 뒤라 확인 요청
+    // 등록이 실패해도 되돌리지 않고 알리기만 한다.
+    function ack(itemId: string) {
+      if (!userId || !workspaceId) return;
+      createScheduleAck({
+        sourceType: 'checklist_due',
+        sourceId: itemId,
+        workspaceId,
+        createdBy: userId,
+        ackRole: values.ackRole,
+      }).catch((cause) => reportFailure('항목은 저장됐지만 기한 알림 설정에 실패했어요. 항목을 다시 저장해주세요.', cause));
+    }
+
     if (editingItem === 'new') {
       if (!workspaceId) return;
       createItem.mutate(
@@ -72,14 +89,15 @@ export function WeddingChecklistView() {
           consultNoteIds: values.consultNoteIds,
           budget: buildBudget(values),
         },
-        { onSuccess: () => setEditingItem(null) },
+        { onSuccess: (newId) => { ack(newId); setEditingItem(null); } },
       );
       return;
     }
     if (editingItem) {
+      const itemId = editingItem.id;
       updateItem.mutate(
-        { id: editingItem.id, patch: toPrepItemPatch(values, editingItem) },
-        { onSuccess: () => setEditingItem(null) },
+        { id: itemId, patch: toPrepItemPatch(values, editingItem) },
+        { onSuccess: () => { ack(itemId); setEditingItem(null); } },
       );
     }
   }

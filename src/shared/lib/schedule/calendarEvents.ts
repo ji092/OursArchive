@@ -12,6 +12,7 @@ export type CalendarChapter = 'love' | 'wedding' | 'pregnancy';
 export type CalendarSourceType =
   | 'love_plan'
   | 'wedding_schedule'
+  | 'checklist_due' // 체크리스트 항목의 마감 기한 — 시각이 없는 "그 날까지" 일정
   | 'consult_note'
   | 'honeymoon'
   | 'pregnancy_event'
@@ -68,8 +69,8 @@ export function filterCalendarEventsByMonth(events: CalendarEvent[], year: numbe
 }
 
 // 목록(달력 옆 타임라인)용 정렬: 다가오는 일정이 위, 지난 일정이 아래(2026-08-31 사용자 지정).
-// 다가오는 것은 가까운 날짜부터, 지난 것은 최근에 지난 것부터 내려간다. 기준은 "오늘 0시"라
-// 오늘 일정은 시각이 지났어도 위에 남는다.
+// 다가오는 것은 가까운 날짜부터, 지난 것은 오래된 것부터 오름차순으로 내려간다(2026-09-02 사용자
+// 지정 — 그전에는 최근에 지난 것부터였다). 기준은 "오늘 0시"라 오늘 일정은 시각이 지났어도 위에 남는다.
 export function sortCalendarEventsForList(events: CalendarEvent[], now: Date = new Date()): CalendarEvent[] {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const upcoming: CalendarEvent[] = [];
@@ -79,7 +80,7 @@ export function sortCalendarEventsForList(events: CalendarEvent[], now: Date = n
     if (Number.isNaN(time) || time >= todayStart) upcoming.push(event);
     else past.push(event);
   }
-  return [...sortCalendarEvents(upcoming), ...sortCalendarEvents(past).reverse()];
+  return [...sortCalendarEvents(upcoming), ...sortCalendarEvents(past)];
 }
 
 export function groupCalendarEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
@@ -97,6 +98,8 @@ export function filterCalendarEventsByChapter(events: CalendarEvent[], chapters:
 }
 
 export function formatCalendarEventTime(event: CalendarEvent): string {
+  // 체크리스트 기한은 약속 시각이 없는 게 정상이라 "시간 미정"이 아니라 마감이라고 적는다.
+  if (isDeadlineEvent(event)) return '이 날까지';
   if (!event.hasTime) return '시간 미정';
   const date = new Date(event.startAt);
   if (Number.isNaN(date.getTime())) return '시간 미정';
@@ -109,4 +112,43 @@ export function formatCalendarEventTime(event: CalendarEvent): string {
 // 날짜만 받는 일정(상담노트 visit_date, 신혼여행 start_date)을 로컬 00:00 ISO로 올린다.
 export function dateOnlyToStartAt(date: string): string {
   return new Date(`${date.slice(0, 10)}T00:00:00`).toISOString();
+}
+
+// "다음 일정" 카드(메인 요즘 우리 / 결혼 NEXT EVENT)가 쓰는 단일 판정.
+// 각 화면이 자기 테이블(prep_item 등)만 보고 각자 계산하면 달력과 다른 답이 나온다 —
+// 달력이 그리는 것과 같은 통합 목록에서 고른다(2026-09-02).
+// 기준은 "오늘 0시"다: 오늘 일정은 시각이 이미 지났어도 다음 일정에 포함하고(2026-09-02 사용자
+// 지정), 날짜만 있는 일정(상담노트·신혼여행·체크리스트 기한)도 같은 기준으로 판정된다.
+export function findUpcomingCalendarEvents(
+  events: CalendarEvent[],
+  limit: number,
+  now: Date = new Date(),
+): CalendarEvent[] {
+  const todayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const upcoming = events.filter((event) => {
+    const time = new Date(event.startAt).getTime();
+    return !Number.isNaN(time) && time >= todayStartMs;
+  });
+  return sortCalendarEvents(upcoming).slice(0, Math.max(0, limit));
+}
+
+export function findNextCalendarEvent(events: CalendarEvent[], now: Date = new Date()): CalendarEvent | undefined {
+  return findUpcomingCalendarEvents(events, 1, now)[0];
+}
+
+// 체크리스트 기한은 달력에서 다른 일정과 다르게 표시한다(날짜 동그라미가 아니라 숫자 아래 "!").
+export function isDeadlineEvent(event: CalendarEvent): boolean {
+  return event.sourceType === 'checklist_due';
+}
+
+// 예: "9월 5일 (토) 오후 2:00" / 날짜만 있는 일정은 "9월 5일 (토)"
+export function formatCalendarEventDateTime(event: CalendarEvent): string {
+  const date = new Date(event.startAt);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+    ...(event.hasTime ? { hour: 'numeric' as const, minute: '2-digit' as const, hour12: true } : {}),
+  });
 }

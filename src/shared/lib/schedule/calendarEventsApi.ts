@@ -1,7 +1,7 @@
 import { supabase } from '@/shared/lib/api/supabaseClient';
 import { dateOnlyToStartAt, type CalendarEvent } from './calendarEvents';
 
-// 여섯 곳에 흩어진 일정을 한 번에 읽어 CalendarEvent로 정규화한다.
+// 일곱 곳에 흩어진 일정을 한 번에 읽어 CalendarEvent로 정규화한다.
 // 접근 통제는 각 테이블의 RLS(can_access_couple_content)가 그대로 판정한다 — 권한이 없으면 빈 배열.
 // 한 소스라도 실패하면 통째로 throw해서 화면이 "일부만 맞는 달력"을 조용히 보여주지 않게 한다.
 async function fetchLovePlanEvents(workspaceId: string): Promise<CalendarEvent[]> {
@@ -53,6 +53,38 @@ async function fetchWeddingScheduleEvents(workspaceId: string, weddingDate: stri
       linkTo: `/wedding/schedule?event=${row.id}`,
     };
   });
+}
+
+// 체크리스트 항목의 마감 기한도 달력에 서는 일정이다(2026-09-02 사용자 지정) — 일정 탭 항목처럼
+// 시각이 있는 약속이 아니라 "그 날까지"라, 제목을 `"항목" 기한`으로 붙이고 달력에서는 다른 표시를
+// 쓴다(isDeadlineEvent). 일정 속성까지 있는 항목은 일정과 기한 두 줄로 서지만 원본은 같은 prep_item
+// 한 건이다(sourceType이 달라 키가 겹치지 않는다).
+async function fetchChecklistDueEvents(workspaceId: string): Promise<CalendarEvent[]> {
+  const { data, error } = await supabase
+    .from('prep_item')
+    .select('id, title, checklist_attr!inner(due_date, done)')
+    .eq('workspace_id', workspaceId);
+  if (error) throw error;
+  return (data ?? [])
+    .map((row) => {
+      const attr = (Array.isArray(row.checklist_attr) ? row.checklist_attr[0] : row.checklist_attr) as {
+        due_date: string | null;
+        done: boolean;
+      };
+      return { row, attr };
+    })
+    .filter(({ attr }) => !!attr?.due_date)
+    .map(({ row, attr }) => ({
+      sourceType: 'checklist_due' as const,
+      sourceId: row.id,
+      chapter: 'wedding' as const,
+      title: `"${row.title}" 기한`,
+      badge: attr.done ? '기한 완료' : '기한',
+      startAt: dateOnlyToStartAt(attr.due_date!),
+      hasTime: false,
+      location: '',
+      linkTo: '/wedding/checklist',
+    }));
 }
 
 async function fetchConsultNoteEvents(workspaceId: string): Promise<CalendarEvent[]> {
@@ -153,6 +185,7 @@ export async function fetchCalendarEvents(workspaceId: string): Promise<Calendar
   const groups = await Promise.all([
     fetchLovePlanEvents(workspaceId),
     fetchWeddingScheduleEvents(workspaceId, workspace?.wedding_date ?? null),
+    fetchChecklistDueEvents(workspaceId),
     fetchConsultNoteEvents(workspaceId),
     fetchHoneymoonEvents(workspaceId),
     fetchPregnancyEventEvents(workspaceId),

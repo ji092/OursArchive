@@ -6,15 +6,17 @@ import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddin
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import styles from './WeddingLayout.module.css';
 
+// 탭 순서와 이름은 2026-09-03 사용자 지정.
 const TABS = [
   { to: '/wedding', label: '요약' },
-  { to: '/wedding/checklist', label: '체크리스트' },
   { to: '/wedding/schedule', label: '일정' },
+  { to: '/wedding/checklist', label: '체크리스트' },
+  { to: '/wedding/bucket', label: '버킷' },
+  { to: '/wedding/consult-notes', label: '상담노트' },
   { to: '/wedding/budget', label: '예산' },
-  { to: '/wedding/consult-notes', label: '상담 노트' },
+  { to: '/wedding/vendor-contacts', label: '업체리스트' },
   { to: '/wedding/honeymoon', label: '신혼여행' },
-  { to: '/wedding/vendor-contacts', label: '업체 연락처' },
-  { to: '/wedding/expenses', label: '지출 내역' },
+  { to: '/wedding/expenses', label: '지출내역' },
 ];
 
 // 요구사항 3.3.1 — 요약 헤더는 전 탭 고정, D-DAY/완료%/예산 사용%는 전부 파생값(deriveStats.ts).

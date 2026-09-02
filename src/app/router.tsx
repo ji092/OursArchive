@@ -39,6 +39,7 @@ export const router = createBrowserRouter([
               { path: 'checklist', lazy: () => import('@/pages/wedding/checklist/WeddingChecklistPage').then((m) => ({ Component: m.default })) },
               { path: 'schedule', lazy: () => import('@/pages/wedding/schedule/WeddingSchedulePage').then((m) => ({ Component: m.default })) },
               { path: 'budget', lazy: () => import('@/pages/wedding/budget/WeddingBudgetPage').then((m) => ({ Component: m.default })) },
+              { path: 'bucket', lazy: () => import('@/pages/wedding/bucket/WeddingBucketPage').then((m) => ({ Component: m.default })) },
               { path: 'consult-notes', lazy: () => import('@/pages/wedding/consult-notes/WeddingConsultNotesPage').then((m) => ({ Component: m.default })) },
               { path: 'honeymoon', lazy: () => import('@/pages/wedding/honeymoon/WeddingHoneymoonPage').then((m) => ({ Component: m.default })) },
               { path: 'vendor-contacts', lazy: () => import('@/pages/wedding/vendor-contacts/WeddingVendorContactsPage').then((m) => ({ Component: m.default })) },

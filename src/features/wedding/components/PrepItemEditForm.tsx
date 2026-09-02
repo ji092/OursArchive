@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useConsultNotes } from '../hooks/useWeddingData';
 import type { PrepItemPatch } from '../api';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
+import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
+import type { AckRole } from '@/shared/lib/schedule/types';
+import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import { useWorkspaceMembers } from '@/shared/hooks/useWorkspaceMembers';
 import { WEDDING_CATEGORIES, type PaymentMethod, type PrepItem, type WeddingCategory } from '../types';
 import styles from './PrepItemEditForm.module.css';
@@ -18,6 +21,8 @@ export interface PrepItemEditFormValues {
   assigneeId: string | null;
   dueDate: string;
   consultNoteIds: string[];
+  // 기한 알림(checklist_due)의 확인 요청 대상 — 이 사람이 댓글로 확인할 때까지 조른다(2026-09-03).
+  ackRole: AckRole;
   plannedAmount: string;
   depositAmount: string;
   depositMethod: PaymentMethod | null;
@@ -104,6 +109,8 @@ export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormPr
   const [balanceMethod, setBalanceMethod] = useState<PaymentMethod | null>(item?.budget?.balance.method ?? null);
   const [balanceMemo, setBalanceMemo] = useState(item?.budget?.balance.memo ?? '');
   const [usedAmount, setUsedAmount] = useState(item?.budget ? String(item.budget.usedAmount) : '');
+  const [ackRole, setAckRole] = useState<AckRole>('partner');
+  const { session } = useSession();
 
   // 계약금/중도금/잔금 중 하나라도 양수면 실지출비용을 그 합계로 자동 반영한다 (2026-07-24 사용자 지정).
   useEffect(() => {
@@ -125,6 +132,7 @@ export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormPr
       assigneeId,
       dueDate,
       consultNoteIds,
+      ackRole,
       plannedAmount,
       depositAmount,
       depositMethod,
@@ -267,9 +275,21 @@ export function PrepItemEditForm({ item, onClose, onSubmit }: PrepItemEditFormPr
           </div>
         </div>
 
+        <AckRoleSelect value={ackRole} onChange={setAckRole} />
+
         <button type="button" className={styles.submit} onClick={handleSubmit}>
           저장하기
         </button>
+
+        {/* 확인 댓글 — 여기에 댓글이 달리면 그 사람 몫의 기한 독촉이 멈춘다(0016 트리거). */}
+        {item && workspaceId && (
+          <ScheduleCommentPanel
+            sourceType="checklist_due"
+            sourceId={item.id}
+            workspaceId={workspaceId}
+            currentUserId={session?.user.id}
+          />
+        )}
       </div>
     </div>
   );

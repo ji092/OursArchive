@@ -2,19 +2,26 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { IconPin, IconTrash } from '@/shared/components/ui/icons';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
+import { AckRoleSelect } from '@/shared/components/schedule/AckRoleSelect';
+import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
+import { createScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
+import { reportFailure } from '@/shared/lib/notice/failureNotice';
+import type { AckRole } from '@/shared/lib/schedule/types';
 import { KakaoMap } from '@/shared/components/map/KakaoMap';
 import { usePlaceSearch } from '@/shared/lib/kakao/usePlaceSearch';
 import { useWeddingActionsHost } from '../actionsPortal';
 import { useCreateConsultNote, useConsultNotes, useDeleteConsultNote, useUpdateConsultNote } from '../hooks/useWeddingData';
-import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
+import { useCurrentWorkspaceId, useSession } from '@/shared/hooks/useAuth';
 import type { ConsultNote, WeddingCategory } from '../types';
 import { WEDDING_CATEGORIES } from '../types';
+import { sortConsultNotesForList } from '../sortConsultNotes';
 import styles from './WeddingConsultNotesView.module.css';
 
 const MAX_PHOTOS = 6;
 
 export function WeddingConsultNotesView() {
   const workspaceId = useCurrentWorkspaceId();
+  const { session } = useSession();
   const { data: notes } = useConsultNotes(workspaceId);
   const createNote = useCreateConsultNote(workspaceId);
   const updateNote = useUpdateConsultNote(workspaceId);
@@ -34,6 +41,9 @@ export function WeddingConsultNotesView() {
   const [existingPhotos, setExistingPhotos] = useState<ConsultNote['photos']>([]);
   const [removedPhotoPaths, setRemovedPhotoPaths] = useState<string[]>([]);
   const [newPhotos, setNewPhotos] = useState<{ file: File; previewUrl: string }[]>([]);
+  // 상담노트도 알림 대상 일정이라 확인 요청 대상을 함께 받는다(2026-09-03) — 이 사람이 댓글로
+  // 확인할 때까지 6·12·24시간 간격으로 조른다.
+  const [ackRole, setAckRole] = useState<AckRole>('partner');
   const place = usePlaceSearch({
     placePlaceholder: '장소 검색 (예: 논현 W웨딩홀)',
     addressPlaceholder: '주소 검색 (예: 강남구 논현동 200)',
@@ -68,6 +78,7 @@ export function WeddingConsultNotesView() {
     setExistingPhotos([]);
     setRemovedPhotoPaths([]);
     setNewPhotos([]);
+    setAckRole('partner');
     place.reset();
     setEditingNote('new');
   }
@@ -84,6 +95,7 @@ export function WeddingConsultNotesView() {
     setExistingPhotos(note.photos);
     setRemovedPhotoPaths([]);
     setNewPhotos([]);
+    setAckRole('partner');
     place.reset({
       placeName: note.vendorName,
       address: note.address,
@@ -140,23 +152,33 @@ export function WeddingConsultNotesView() {
       lat: place.coords?.lat ?? null,
       lng: place.coords?.lng ?? null,
     };
+    const userId = session?.user.id;
+    // 노트는 이미 저장된 뒤라 확인 요청 등록이 실패해도 되돌리지 않는다 — 알리기만 한다.
+    function ack(noteId: string) {
+      if (!userId) return;
+      createScheduleAck({ sourceType: 'consult_note', sourceId: noteId, workspaceId: workspaceId!, createdBy: userId, ackRole }).catch(
+        (cause) => reportFailure('상담노트는 저장됐지만 확인 알림 설정에 실패했어요. 노트를 다시 저장해주세요.', cause),
+      );
+    }
+
     if (editingNote === 'new') {
       createNote.mutate(
         { workspaceId, ...fields, photoFiles: newPhotos.map((p) => p.file) },
-        { onSuccess: closeForm },
+        { onSuccess: (noteId) => { ack(noteId); closeForm(); } },
       );
       return;
     }
     if (editingNote) {
+      const noteId = editingNote.id;
       updateNote.mutate(
         {
-          id: editingNote.id,
+          id: noteId,
           workspaceId,
           patch: fields,
           removedPhotoPaths,
           newPhotoFiles: newPhotos.map((p) => p.file),
         },
-        { onSuccess: closeForm },
+        { onSuccess: () => { ack(noteId); closeForm(); } },
       );
     }
   }
@@ -300,9 +322,21 @@ export function WeddingConsultNotesView() {
               )}
             </div>
 
+            <AckRoleSelect value={ackRole} onChange={setAckRole} />
+
             <button type="button" className={styles.submit} onClick={handleSubmit}>
               {editingNote === 'new' ? '추가하기' : '저장하기'}
             </button>
+
+            {/* 확인 댓글 — 여기에 댓글이 달리면 그 사람 몫의 확인 독촉이 멈춘다(0016 트리거). */}
+            {editingNote !== 'new' && workspaceId && (
+              <ScheduleCommentPanel
+                sourceType="consult_note"
+                sourceId={editingNote.id}
+                workspaceId={workspaceId}
+                currentUserId={session?.user.id}
+              />
+            )}
 
             {editingNote !== 'new' &&
               (confirmingDeleteId === editingNote.id ? (
@@ -337,7 +371,7 @@ export function WeddingConsultNotesView() {
       )}
 
       <div className={styles.grid}>
-        {(notes ?? []).map((note) => (
+        {sortConsultNotesForList(notes ?? []).map((note) => (
           <div key={note.id} className={styles.cardWrap}>
             {/* 삭제 버튼은 카드(button) 안에 넣을 수 없어 바깥에 겹쳐 둔다. */}
             {confirmingDeleteId === note.id ? (

@@ -5,7 +5,7 @@ import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
 import { ScheduleCommentPanel } from '@/shared/components/schedule/ScheduleCommentPanel';
 import { CalendarEventList } from '@/shared/components/schedule/CalendarEventList';
 import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
-import { groupCalendarEventsByDate, localDateKey } from '@/shared/lib/schedule/calendarEvents';
+import { groupCalendarEventsByDate, isDeadlineEvent, localDateKey } from '@/shared/lib/schedule/calendarEvents';
 import { buildMonthCells, monthCellDateKey, WEEKDAY_LABELS } from '@/shared/lib/schedule/calendarGrid';
 import { useDeleteLovePlan } from '../hooks/useCreateLovePlan';
 import { useLovePlans } from '../hooks/useLovePlans';
@@ -129,12 +129,18 @@ export function LoveCalendarView({ includeOtherChapters = false }: LoveCalendarV
           const dayPlans = plansByDate.get(dateKey) ?? [];
           const dayOtherEvents = otherChapterEventsByDate.get(dateKey) ?? [];
           const isSelected = dateKey === selectedDateKey;
-          const hasPlan = dayPlans.length > 0 || dayOtherEvents.length > 0;
+          // 체크리스트 기한은 약속이 아니라 마감이라 날짜 동그라미가 아니라 숫자 아래 "!"로 표시한다
+          // (2026-09-02 사용자 지정). 누르면 다른 일정과 같은 목록에 "제목" 기한으로 선다.
+          const dayDeadlines = dayOtherEvents.filter(isDeadlineEvent);
+          const dayScheduled = dayOtherEvents.filter((event) => !isDeadlineEvent(event));
+          const hasPlan = dayPlans.length > 0 || dayScheduled.length > 0;
           return (
             <button
               key={dateKey}
               type="button"
-              className={isSelected ? `${styles.cell} ${styles.cellSelected}` : styles.cell}
+              className={[styles.cell, hasPlan || dayDeadlines.length > 0 ? styles.cellHasPlan : '', isSelected ? styles.cellSelected : '']
+                .filter(Boolean)
+                .join(' ')}
               onClick={() => {
                 setSelectedDateKey(isSelected ? null : dateKey);
                 setSelectedPlanId(null);
@@ -145,12 +151,17 @@ export function LoveCalendarView({ includeOtherChapters = false }: LoveCalendarV
                 className={hasPlan ? `${styles.cellDate} ${styles.cellDateHasPlan}` : styles.cellDate}
                 title={
                   hasPlan
-                    ? [...dayPlans.map((plan) => plan.title), ...dayOtherEvents.map((event) => event.title)].join(', ')
+                    ? [...dayPlans.map((plan) => plan.title), ...dayScheduled.map((event) => event.title)].join(', ')
                     : undefined
                 }
               >
                 {day}
               </span>
+              {dayDeadlines.length > 0 && (
+                <span className={styles.cellDeadline} title={dayDeadlines.map((event) => event.title).join(', ')}>
+                  !
+                </span>
+              )}
               {dayRecords.length > 0 && (
                 <span className={styles.cellMarker}>
                   <img src="/icons/camera.png" alt="" width={10} height={10} />

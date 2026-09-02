@@ -5,7 +5,6 @@ import {
   computeCategoryProgress,
   computeChecklistProgress,
   computeDday,
-  findNextEvent,
   formatWon,
 } from './deriveStats';
 import type { PrepItem } from './types';
@@ -131,27 +130,6 @@ describe('computeCategoryProgress / computeCategoryBudget', () => {
       }),
     ];
     expect(computeCategoryBudget(items)).toEqual({ 혼수: { planned: 300, used: 150 } });
-  });
-});
-
-describe('findNextEvent', () => {
-  const now = new Date('2026-08-04T00:00:00');
-
-  it('현재 이후 일정 중 가장 이른 것을 반환한다', () => {
-    const items = [
-      item({ id: 'late', schedule: { scheduledAt: '2026-09-01T00:00:00', location: '', eventType: '상담' } }),
-      item({ id: 'soon', schedule: { scheduledAt: '2026-08-05T00:00:00', location: '', eventType: '상담' } }),
-    ];
-    expect(findNextEvent(items, now)?.id).toBe('soon');
-  });
-
-  it('지난 일정은 제외한다', () => {
-    const items = [item({ schedule: { scheduledAt: '2026-08-01T00:00:00', location: '', eventType: '상담' } })];
-    expect(findNextEvent(items, now)).toBeUndefined();
-  });
-
-  it('일정 없는 항목뿐이면 undefined', () => {
-    expect(findNextEvent([item()], now)).toBeUndefined();
   });
 });
 

@@ -3,28 +3,35 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import { invalidateCalendarEvents } from '@/shared/hooks/useCalendarEvents';
 import {
+  createBucket,
   createConsultNote,
   createExpense,
   createPrepItem,
   createVendorContact,
+  deleteBucket,
   deleteExpense,
   deletePrepItem,
   deleteConsultNote,
   deleteVendorContact,
   deleteWeddingSchedule,
+  fetchBuckets,
   fetchConsultNotes,
   fetchExpenses,
   fetchHoneymoon,
   fetchPrepItems,
   fetchVendorContacts,
+  setBucketCoverPhoto,
   toggleChecklistDone,
+  updateBucket,
   updateConsultNote,
   updateExpense,
   updateHoneymoon,
   updatePrepItem,
   updateVendorContact,
+  type CreateBucketInput,
   type SaveExpenseInput,
   type SaveVendorContactInput,
+  type UpdateBucketInput,
 } from '../api';
 
 const prepItemsQueryKey = (workspaceId: string) => ['wedding-prep-items', workspaceId] as const;
@@ -124,7 +131,8 @@ function invalidateConsultNoteQueries(queryClient: ReturnType<typeof useQueryCli
   ]);
 }
 
-// prep_item에는 일정(schedule_attr)이 붙을 수 있으므로 항목이 바뀌면 통합 일정도 같이 무효화한다.
+// prep_item에는 일정(schedule_attr)과 체크리스트 기한(checklist_attr.due_date)이 붙을 수 있고
+// 둘 다 달력에 서므로, 항목이 바뀌면 통합 일정도 같이 무효화한다.
 function invalidatePrepItemQueries(queryClient: ReturnType<typeof useQueryClient>, workspaceId: string | undefined) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: prepItemsQueryKey(workspaceId ?? '') }),
@@ -238,4 +246,49 @@ export function useDeleteExpense(workspaceId: string | undefined) {
     mutationFn: deleteExpense,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: expensesQueryKey(workspaceId ?? '') }),
   });
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 버킷(관심 업체 카드). 날짜가 없어 달력에 서지 않으므로 통합 일정 캐시는 건드리지 않는다.
+// ─────────────────────────────────────────────────────────────────────────────
+export const bucketsQueryKey = (workspaceId: string) => ['wedding-buckets', workspaceId] as const;
+
+export function useBuckets(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: bucketsQueryKey(workspaceId ?? ''),
+    queryFn: () => fetchBuckets(workspaceId!),
+    enabled: !!workspaceId,
+  });
+}
+
+function useBucketMutation<TVariables>(
+  workspaceId: string | undefined,
+  mutationFn: (variables: TVariables) => Promise<void>,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: bucketsQueryKey(workspaceId ?? '') }),
+  });
+}
+
+export function useCreateBucket(workspaceId: string | undefined) {
+  return useBucketMutation(workspaceId, (input: Omit<CreateBucketInput, 'workspaceId'>) =>
+    createBucket({ ...input, workspaceId: workspaceId! }),
+  );
+}
+
+export function useUpdateBucket(workspaceId: string | undefined) {
+  return useBucketMutation(workspaceId, (input: Omit<UpdateBucketInput, 'workspaceId'>) =>
+    updateBucket({ ...input, workspaceId: workspaceId! }),
+  );
+}
+
+export function useDeleteBucket(workspaceId: string | undefined) {
+  return useBucketMutation(workspaceId, deleteBucket);
+}
+
+export function useSetBucketCoverPhoto(workspaceId: string | undefined) {
+  return useBucketMutation(workspaceId, setBucketCoverPhoto);
 }

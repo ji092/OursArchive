@@ -14,6 +14,7 @@ import {
   filterCalendarEventsByMonth,
   formatCalendarEventTime,
   groupCalendarEventsByDate,
+  isDeadlineEvent,
   sortCalendarEventsForList,
   type CalendarEvent,
 } from '@/shared/lib/schedule/calendarEvents';
@@ -154,7 +155,11 @@ export function WeddingScheduleView() {
             {cells.map((day, index) => {
               if (day === null) return <span key={index} className={styles.dayCellEmpty} />;
               const key = monthCellDateKey(year, month, day);
-              const hasEvents = weddingEventsByDate.has(key);
+              const dayEvents = weddingEventsByDate.get(key) ?? [];
+              // 체크리스트 기한은 날짜 테두리가 아니라 숫자 아래 "!"로 표시한다(메인 달력과 같은
+              // 규칙, 2026-09-02 사용자 지정).
+              const dayDeadlines = dayEvents.filter(isDeadlineEvent);
+              const hasEvents = dayEvents.length > dayDeadlines.length;
               const isSelected = selectedDate === key;
               return (
                 <button
@@ -170,6 +175,11 @@ export function WeddingScheduleView() {
                   onClick={() => handleSelectDate(day)}
                 >
                   {day}
+                  {dayDeadlines.length > 0 && (
+                    <span className={styles.dayCellDeadline} title={dayDeadlines.map((event) => event.title).join(', ')}>
+                      !
+                    </span>
+                  )}
                 </button>
               );
             })}

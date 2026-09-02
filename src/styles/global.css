@@ -39,6 +39,11 @@ body {
   letter-spacing: 0.02em;
   color: var(--color-text);
   background: var(--color-bg);
+  /* 어느 화면이든 페이지 전체가 가로로 밀리지 않게 막는다(2026-09-03) — 밀리면 sticky 헤더가
+     화면 폭만큼만 덮어서 오른쪽에 본문이 비쳐 보인다. clip은 hidden과 달리 스크롤 컨테이너를
+     만들지 않으므로 헤더의 position: sticky가 그대로 동작한다. 가로 스크롤이 필요한 요소는
+     각자 overflow-x: auto를 갖는다. */
+  overflow-x: clip;
 }
 
 a {

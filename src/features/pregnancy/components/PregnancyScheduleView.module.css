@@ -26,6 +26,13 @@
   gap: 20px;
 }
 
+/* 결혼 일정 탭과 같은 규칙(2026-09-03) — 좁은 화면에서는 목록을 달력 아래로 내린다. */
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .calendarCol {
   display: flex;
   flex-direction: column;
@@ -95,6 +102,8 @@
 }
 
 .dayCellHasEvent {
+  /* 결혼 일정 달력과 같은 규칙(2026-09-03) — 일정 있는 날은 바탕색도 옅게. */
+  background: var(--color-accent-soft);
   border-color: var(--color-accent);
   font-weight: 700;
   color: var(--color-accent);

@@ -1,12 +1,18 @@
 import { Link } from 'react-router-dom';
 import { IconCalendar } from '@/shared/components/ui/icons';
-import { formatMonthDayWeekdayTime } from '@/shared/lib/date/formatDateTime';
+import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
+import {
+  calendarEventKey,
+  filterCalendarEventsByChapter,
+  findUpcomingCalendarEvents,
+  formatCalendarEventDateTime,
+} from '@/shared/lib/schedule/calendarEvents';
 import {
   computeBudgetSummary,
   computeCategoryProgress,
-  findNextEvent,
   formatWon,
 } from '../deriveStats';
+import { sortConsultNotesForList } from '../sortConsultNotes';
 import { useConsultNotes, usePrepItems } from '../hooks/useWeddingData';
 import { useCurrentWorkspaceId } from '@/shared/hooks/useAuth';
 import styles from './WeddingSummaryView.module.css';
@@ -15,12 +21,17 @@ export function WeddingSummaryView() {
   const workspaceId = useCurrentWorkspaceId();
   const { data: items } = usePrepItems(workspaceId);
   const { data: notes } = useConsultNotes(workspaceId);
+  // NEXT EVENT는 prep_item.schedule만 보지 않고 달력과 같은 통합 일정에서 고른다 — 상담노트·
+  // 신혼여행처럼 prep_item이 아닌 결혼 일정도 후보에 들어가야 달력과 답이 같아진다(2026-09-02).
+  const { data: calendarEvents } = useCalendarEvents(workspaceId);
   if (!items || !notes) return <p>불러오는 중…</p>;
 
   const categoryProgress = computeCategoryProgress(items);
   const budget = computeBudgetSummary(items);
-  const nextEvent = findNextEvent(items);
-  const recentNotes = [...notes].sort((a, b) => (a.visitDate < b.visitDate ? 1 : -1)).slice(0, 3);
+  // 오늘 포함, 가까운 순으로 5개까지. 5개가 안 되면 있는 것만 보여준다(2026-09-02 사용자 지정).
+  const nextEvents = findUpcomingCalendarEvents(filterCalendarEventsByChapter(calendarEvents ?? [], ['wedding']), 5);
+  // 상담노트 카드 목록과 같은 순서(예정 오름차순 → 완료 내림차순)로 앞 3건만 보여준다(2026-09-02).
+  const recentNotes = sortConsultNotesForList(notes).slice(0, 3);
 
   return (
     <div className={styles.grid}>
@@ -81,11 +92,20 @@ export function WeddingSummaryView() {
       <div className={styles.columnRight}>
       <section className={styles.card}>
         <p className={styles.cardTitle}>NEXT EVENT</p>
-        {nextEvent?.schedule ? (
-          <div className={styles.nextEvent}>
-            <p className={styles.nextEventTitle}>{nextEvent.title}</p>
-            <p className={styles.nextEventMeta}>{nextEvent.schedule.location}</p>
-            <p className={styles.nextEventMeta}><IconCalendar /> {formatMonthDayWeekdayTime(nextEvent.schedule.scheduledAt)}</p>
+        {nextEvents.length > 0 ? (
+          <div className={styles.nextEventList}>
+            {nextEvents.map((event) => (
+              <Link key={calendarEventKey(event)} to={event.linkTo} className={styles.nextEvent}>
+                <span className={styles.nextEventBadge}>{event.badge}</span>
+                <span className={styles.nextEventInfo}>
+                  <span className={styles.nextEventTitle}>{event.title}</span>
+                  <span className={styles.nextEventMeta}>
+                    <IconCalendar /> {formatCalendarEventDateTime(event)}
+                    {event.location && ` · ${event.location}`}
+                  </span>
+                </span>
+              </Link>
+            ))}
           </div>
         ) : (
           <p className={styles.empty}>예정된 일정이 없어요.</p>

@@ -2,7 +2,7 @@ import { supabase } from '@/shared/lib/api/supabaseClient';
 import { deleteScheduleAck } from '@/shared/lib/schedule/scheduleAckApi';
 import { reportFailure } from '@/shared/lib/notice/failureNotice';
 import { deleteContentPhotos, resolveContentPhotoUrls, rollbackUploadedPhotos, uploadContentPhotos } from '@/shared/lib/storage/uploadContentPhotos';
-import type { ConsultNote, Expense, Honeymoon, HoneymoonDay, PaymentMethod, PrepItem, VendorContact, WeddingEventType } from './types';
+import type { BucketItem, BucketPhoto, ConsultNote, Expense, Honeymoon, HoneymoonDay, PaymentMethod, PrepItem, VendorContact, WeddingEventType } from './types';
 
 // backend/policies/0012_wedding_rpc.sql의 create_prep_item/update_prep_item/save_honeymoon RPC를 쓴다 —
 // prep_item + 3개 attr 테이블(1:1)을 원자적으로 같이 써야 해서 클라이언트 순차 호출 대신 서버 함수로 처리.
@@ -171,6 +171,11 @@ export async function deleteWeddingSchedule(id: string): Promise<void> {
 }
 
 export async function deletePrepItem(id: string): Promise<void> {
+  // 항목이 사라지면 그 항목의 일정 확인 요청도 의미가 없다. 폴리모픽 참조라 캐스케이드가
+  // 없으므로 두 소스(일정 속성 / 체크리스트 기한)를 모두 직접 지운다.
+  await deleteScheduleAck('checklist_due', id).catch((cause) =>
+    reportFailure('항목은 삭제했지만 기한 알림 설정을 지우지 못했어요. 알림이 계속 올 수 있어요.', cause),
+  );
   const { error } = await supabase.from('prep_item').delete().eq('id', id);
   if (error) throw error;
 }
@@ -178,8 +183,17 @@ export async function deletePrepItem(id: string): Promise<void> {
 export async function toggleChecklistDone(id: string): Promise<void> {
   const { data, error } = await supabase.from('checklist_attr').select('done').eq('prep_item_id', id).single();
   if (error) throw error;
-  const { error: updateError } = await supabase.from('checklist_attr').update({ done: !data.done }).eq('prep_item_id', id);
+  const done = !data.done;
+  const { error: updateError } = await supabase.from('checklist_attr').update({ done }).eq('prep_item_id', id);
   if (updateError) throw updateError;
+
+  // 완료로 바꾸면 기한 확인 요청을 거둔다 — run_schedule_reminders()는 완료 여부를 모르고
+  // 댓글로 확인할 때까지 계속 조르기 때문에, 끝낸 항목이 계속 울리는 것을 여기서 막는다.
+  if (done) {
+    await deleteScheduleAck('checklist_due', id).catch((cause) =>
+      reportFailure('완료 처리는 됐지만 기한 알림을 끄지 못했어요. 알림이 계속 올 수 있어요.', cause),
+    );
+  }
 }
 
 export async function fetchConsultNotes(workspaceId: string): Promise<ConsultNote[]> {
@@ -238,7 +252,7 @@ export interface CreateConsultNoteInput {
   photoFiles: File[];
 }
 
-export async function createConsultNote(input: CreateConsultNoteInput): Promise<void> {
+export async function createConsultNote(input: CreateConsultNoteInput): Promise<string> {
   const { data: note, error } = await supabase
     .from('consult_note')
     .insert({
@@ -280,6 +294,9 @@ export async function createConsultNote(input: CreateConsultNoteInput): Promise<
       throw attachError;
     }
   }
+
+  // 호출부가 이 id로 schedule_ack(확인 요청)를 만든다 — 상담노트도 알림 대상 일정이다(2026-09-03).
+  return note.id;
 }
 
 export interface UpdateConsultNoteInput {
@@ -366,6 +383,12 @@ export async function deleteConsultNote(id: string): Promise<void> {
     const { error: rowError } = await supabase.from('attachment').delete().eq('link_type', 'consult').eq('link_id', id);
     if (rowError) throw rowError;
   }
+
+  // 상담노트는 알림 대상 일정이라 schedule_ack/schedule_comment가 붙는다. 폴리모픽 참조라
+  // FK 캐스케이드가 없으므로 직접 지운다 — 안 지우면 삭제된 노트로 리마인더가 계속 나간다.
+  await deleteScheduleAck('consult_note', id).catch((cause) =>
+    reportFailure('상담노트는 삭제했지만 확인 알림 설정을 지우지 못했어요. 알림이 계속 올 수 있어요.', cause),
+  );
 
   const { error } = await supabase.from('consult_note').delete().eq('id', id);
   if (error) throw error;
@@ -601,5 +624,192 @@ export async function updateExpense(id: string, input: SaveExpenseInput): Promis
 
 export async function deleteExpense(id: string): Promise<void> {
   const { error } = await supabase.from('expense').delete().eq('id', id);
+  if (error) throw error;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 버킷 (wedding_bucket) — 관심 업체 카드. 스키마는 backend/migrations/0022_wedding_bucket.sql.
+// 사진 경로 규칙은 다른 챕터와 같다: <workspace_id>/wedding_bucket/<bucket_id>/<n>.webp
+// ─────────────────────────────────────────────────────────────────────────────
+const BUCKET_PHOTO_TABLE = 'wedding_bucket';
+const BUCKET_GRADIENT = 'linear-gradient(135deg, #efe3d6, #d9cfc2)';
+
+// 대표 사진이 맨 앞, 나머지는 등록 순서(sort_order). 카드 썸네일은 이 배열의 첫 장을 쓴다.
+function sortBucketPhotos(photos: BucketPhoto[]): BucketPhoto[] {
+  return [...photos].sort((a, b) => (a.isCover === b.isCover ? 0 : a.isCover ? -1 : 1));
+}
+
+export async function fetchBuckets(workspaceId: string): Promise<BucketItem[]> {
+  const { data, error } = await supabase
+    .from('wedding_bucket')
+    .select('id, category, vendor_name, address, lat, lng, link_url, memo')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  const ids = (data ?? []).map((row) => row.id);
+  if (ids.length === 0) return [];
+
+  const { data: photoRows, error: photoError } = await supabase
+    .from('wedding_bucket_photo')
+    .select('id, bucket_id, path, is_cover, sort_order')
+    .in('bucket_id', ids);
+  if (photoError) throw photoError;
+
+  const urlByPath = await resolveContentPhotoUrls((photoRows ?? []).map((p) => p.path));
+  const photosByBucket = new Map<string, BucketPhoto[]>();
+  for (const row of [...(photoRows ?? [])].sort((a, b) => a.sort_order - b.sort_order)) {
+    const list = photosByBucket.get(row.bucket_id) ?? [];
+    list.push({ id: row.id, path: row.path, isCover: row.is_cover, gradient: BUCKET_GRADIENT, imageUrl: urlByPath[row.path] });
+    photosByBucket.set(row.bucket_id, list);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    category: row.category,
+    vendorName: row.vendor_name,
+    address: row.address,
+    lat: row.lat,
+    lng: row.lng,
+    linkUrl: row.link_url,
+    memo: row.memo,
+    photos: sortBucketPhotos(photosByBucket.get(row.id) ?? []),
+  }));
+}
+
+export interface SaveBucketFields {
+  category: BucketItem['category'];
+  vendorName: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  linkUrl: string;
+  memo: string;
+}
+
+export interface CreateBucketInput extends SaveBucketFields {
+  workspaceId: string;
+  photoFiles: File[];
+  coverIndex: number | null; // photoFiles 중 대표로 쓸 장의 인덱스. null이면 대표 없음.
+}
+
+// 카드 행 → 사진 업로드 → 사진 행 순서. 사진 행을 못 만들면 업로드한 파일을 되돌린다
+// (아무도 참조하지 않는 파일이 Storage에 남지 않게 — 상담노트와 같은 규칙).
+export async function createBucket(input: CreateBucketInput): Promise<void> {
+  const { data: bucket, error } = await supabase
+    .from('wedding_bucket')
+    .insert({
+      workspace_id: input.workspaceId,
+      category: input.category,
+      vendor_name: input.vendorName,
+      address: input.address,
+      lat: input.lat,
+      lng: input.lng,
+      link_url: input.linkUrl,
+      memo: input.memo,
+    })
+    .select('id')
+    .single();
+  if (error) throw error;
+
+  if (input.photoFiles.length > 0) {
+    await insertBucketPhotos(input.workspaceId, bucket.id, input.photoFiles, input.coverIndex, 0);
+  }
+}
+
+export interface UpdateBucketInput extends SaveBucketFields {
+  id: string;
+  workspaceId: string;
+  removedPhotoPaths?: string[];
+  newPhotoFiles?: File[];
+  newCoverIndex?: number | null; // 새로 올리는 사진 중 대표로 지정할 인덱스
+}
+
+export async function updateBucket(input: UpdateBucketInput): Promise<void> {
+  const { error } = await supabase
+    .from('wedding_bucket')
+    .update({
+      category: input.category,
+      vendor_name: input.vendorName,
+      address: input.address,
+      lat: input.lat,
+      lng: input.lng,
+      link_url: input.linkUrl,
+      memo: input.memo,
+    })
+    .eq('id', input.id);
+  if (error) throw error;
+
+  const removed = input.removedPhotoPaths ?? [];
+  if (removed.length > 0) {
+    const { error: rowError } = await supabase.from('wedding_bucket_photo').delete().in('path', removed);
+    if (rowError) throw rowError;
+    // 파일 삭제가 실패해도 카드는 이미 맞는 상태다 — 되돌리지 않고 알리기만 한다.
+    await deleteContentPhotos(removed).catch((cause) =>
+      reportFailure('사진 정보는 지웠지만 저장소 파일을 지우지 못했어요. 용량에만 남습니다.', cause),
+    );
+  }
+
+  const files = input.newPhotoFiles ?? [];
+  if (files.length > 0) {
+    const { count } = await supabase
+      .from('wedding_bucket_photo')
+      .select('*', { count: 'exact', head: true })
+      .eq('bucket_id', input.id);
+    await insertBucketPhotos(input.workspaceId, input.id, files, input.newCoverIndex ?? null, count ?? 0);
+  }
+}
+
+// 업로드 + 사진 행 삽입 + (지정 시) 대표 지정. 대표 지정은 RPC로 "기존 해제 → 새로 지정"을
+// 한 트랜잭션에 묶는다 — 두 문장을 따로 보내면 대표 유니크 인덱스에 걸리거나 대표 없는 카드가 남는다.
+async function insertBucketPhotos(
+  workspaceId: string,
+  bucketId: string,
+  files: File[],
+  coverIndex: number | null,
+  sortOffset: number,
+): Promise<void> {
+  const paths = await uploadContentPhotos(workspaceId, BUCKET_PHOTO_TABLE, bucketId, files);
+  const { data: inserted, error } = await supabase
+    .from('wedding_bucket_photo')
+    .insert(paths.map((path, i) => ({ bucket_id: bucketId, path, sort_order: sortOffset + i })))
+    .select('id, path');
+  if (error) {
+    await rollbackUploadedPhotos(paths);
+    throw error;
+  }
+
+  if (coverIndex !== null && coverIndex >= 0 && coverIndex < paths.length) {
+    const coverRow = (inserted ?? []).find((row) => row.path === paths[coverIndex]);
+    // 사진은 이미 저장됐다 — 대표 지정만 실패하면 사용자가 상세에서 다시 고르면 된다.
+    if (coverRow) await setBucketCoverPhoto(coverRow.id).catch((cause) =>
+      reportFailure('사진은 올렸지만 대표 사진 지정에 실패했어요. 자세히 보기에서 다시 골라주세요.', cause),
+    );
+  }
+}
+
+export async function setBucketCoverPhoto(photoId: string): Promise<void> {
+  const { error } = await supabase.rpc('set_wedding_bucket_cover', { p_photo_id: photoId });
+  if (error) throw error;
+}
+
+// 카드 삭제 — 사진 행은 FK cascade로 지워지지만 Storage 파일은 남으므로 먼저 지운다.
+// 순서: 경로 조회 → Storage 파일 → 카드 행(사진 행은 cascade).
+export async function deleteBucket(id: string): Promise<void> {
+  const { data: photos, error: photoError } = await supabase
+    .from('wedding_bucket_photo')
+    .select('path')
+    .eq('bucket_id', id);
+  if (photoError) throw photoError;
+
+  const paths = (photos ?? []).map((p) => p.path);
+  if (paths.length > 0) {
+    await deleteContentPhotos(paths).catch((cause) =>
+      reportFailure('사진 파일을 지우지 못했어요. 카드는 삭제를 계속합니다.', cause),
+    );
+  }
+
+  const { error } = await supabase.from('wedding_bucket').delete().eq('id', id);
   if (error) throw error;
 }

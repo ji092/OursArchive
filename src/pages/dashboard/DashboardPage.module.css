@@ -202,6 +202,41 @@
   color: var(--color-text-muted);
 }
 
+/* 요즘 우리 · WEDDING 카드의 다음 일정 목록(최대 3개, 2026-09-02). */
+.eventList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eventItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.eventBadge {
+  flex: none;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.eventInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .progressTrack {
   margin-top: 6px;
   height: 6px;

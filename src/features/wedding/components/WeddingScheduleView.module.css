@@ -26,6 +26,15 @@
   gap: 20px;
 }
 
+/* 좁은 화면에서는 달력 옆에 목록을 세우지 않고 달력 아래로 내린다(2026-09-03 사용자 지정) —
+   가로로 붙여두면 일정 카드 폭이 모자라 글자가 세로로 눌려 길어진다.
+   다른 결혼 탭(요약·예산·상담노트·신혼여행)과 같은 760px 기준을 쓴다. */
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .calendarCol {
   display: flex;
   flex-direction: column;
@@ -96,7 +105,22 @@
 
 .dayCellHasEvent {
   border-color: var(--color-accent);
+  /* 테두리만으로는 눈에 잘 안 띄어 바탕색도 옅게 깐다(2026-09-03 사용자 지정). */
+  background: var(--color-accent-soft);
   font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* 체크리스트 기한 표시 — 날짜 숫자 아래, 칸 가운데(2026-09-02). */
+.dayCellDeadline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
   color: var(--color-accent);
 }
 

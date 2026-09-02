@@ -59,6 +59,12 @@
   padding: 6px 4px 4px;
 }
 
+/* 일정이 있는 날은 날짜 동그라미만으로는 눈에 잘 안 띄어 칸 바탕색도 옅게 깐다(2026-09-03 사용자 지정). */
+.cellHasPlan {
+  background: var(--color-accent-soft);
+}
+
+/* 고른 날은 일정 유무와 상관없이 테두리로 구분한다 — 바탕색이 같아도 테두리가 다르다. */
 .cellSelected {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
@@ -82,6 +88,19 @@
   border: 1.5px solid var(--color-accent);
   color: var(--color-accent);
   font-weight: 700;
+}
+
+/* 체크리스트 기한 표시 — 날짜 숫자 아래, 칸 가운데(2026-09-02). */
+.cellDeadline {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-accent);
 }
 
 .cellMarker {

@@ -6,6 +6,10 @@ import {
   dateOnlyToStartAt,
   filterCalendarEventsByChapter,
   filterCalendarEventsByMonth,
+  findNextCalendarEvent,
+  findUpcomingCalendarEvents,
+  formatCalendarEventDateTime,
+  isDeadlineEvent,
   formatCalendarEventTime,
   groupCalendarEventsByDate,
   sortCalendarEvents,
@@ -141,7 +145,7 @@ describe('filterCalendarEventsByMonth', () => {
 describe('sortCalendarEventsForList', () => {
   const now = new Date('2026-09-10T12:00:00');
 
-  it('다가오는 일정이 위, 지난 일정이 아래로 간다', () => {
+  it('다가오는 일정이 위(가까운 순), 지난 일정이 아래(오래된 순)로 간다', () => {
     const events = [
       event({ sourceId: 'past-old', startAt: new Date('2026-09-01T10:00:00').toISOString() }),
       event({ sourceId: 'future-far', startAt: new Date('2026-09-20T10:00:00').toISOString() }),
@@ -151,8 +155,8 @@ describe('sortCalendarEventsForList', () => {
     expect(sortCalendarEventsForList(events, now).map((e) => e.sourceId)).toEqual([
       'future-near',
       'future-far',
-      'past-recent',
       'past-old',
+      'past-recent',
     ]);
   });
 
@@ -171,5 +175,116 @@ describe('sortCalendarEventsForList', () => {
     ];
     sortCalendarEventsForList(events, now);
     expect(events.map((e) => e.sourceId)).toEqual(['a', 'b']);
+  });
+});
+
+describe('findNextCalendarEvent', () => {
+  const now = new Date('2026-09-10T12:00:00');
+
+  it('달력과 같은 통합 목록에서 가장 가까운 다음 일정을 고른다', () => {
+    const next = findNextCalendarEvent(
+      [
+        event({ sourceId: 'a', title: '나중', startAt: new Date('2026-09-20T10:00:00').toISOString() }),
+        event({ sourceId: 'b', title: '곧', startAt: new Date('2026-09-11T10:00:00').toISOString() }),
+        event({ sourceId: 'c', title: '지난', startAt: new Date('2026-09-01T10:00:00').toISOString() }),
+      ],
+      now,
+    );
+    expect(next?.title).toBe('곧');
+  });
+
+  it('챕터를 가리지 않고 상담노트·신혼여행 같은 소스도 후보에 넣는다', () => {
+    const next = findNextCalendarEvent(
+      [
+        event({ sourceType: 'wedding_schedule', sourceId: 'w', chapter: 'wedding', title: '본식', startAt: new Date('2026-10-10T11:00:00').toISOString() }),
+        event({ sourceType: 'consult_note', sourceId: 'n', chapter: 'wedding', title: '스튜디오 상담', startAt: dateOnlyToStartAt('2026-09-15'), hasTime: false }),
+      ],
+      now,
+    );
+    expect(next?.title).toBe('스튜디오 상담');
+  });
+
+  it('오늘 날짜의 종일 일정은 아직 지나지 않은 것으로 본다', () => {
+    const next = findNextCalendarEvent(
+      [event({ sourceType: 'honeymoon', sourceId: 'h', title: '신혼여행 출발', startAt: dateOnlyToStartAt('2026-09-10'), hasTime: false })],
+      now,
+    );
+    expect(next?.title).toBe('신혼여행 출발');
+  });
+
+  it('오늘 일정은 시각이 이미 지났어도 포함한다', () => {
+    const next = findNextCalendarEvent(
+      [event({ title: '오늘 오전', startAt: new Date('2026-09-10T09:00:00').toISOString() })],
+      now,
+    );
+    expect(next?.title).toBe('오늘 오전');
+  });
+
+  it('어제 일정은 고르지 않는다', () => {
+    expect(findNextCalendarEvent([event({ startAt: new Date('2026-09-09T23:00:00').toISOString() })], now)).toBeUndefined();
+  });
+
+  it('다가오는 일정이 없으면 undefined', () => {
+    expect(findNextCalendarEvent([event({ startAt: new Date('2026-08-01T10:00:00').toISOString() })], now)).toBeUndefined();
+  });
+});
+
+describe('formatCalendarEventDateTime', () => {
+  it('시간이 있는 일정은 시각까지 찍는다', () => {
+    const text = formatCalendarEventDateTime(event({ startAt: new Date('2026-09-05T14:00:00').toISOString() }));
+    expect(text).toContain('9월 5일');
+    expect(text).toContain('2:00');
+  });
+
+  it('날짜만 있는 일정은 시각을 찍지 않는다', () => {
+    const text = formatCalendarEventDateTime(event({ startAt: dateOnlyToStartAt('2026-09-05'), hasTime: false }));
+    expect(text).toContain('9월 5일');
+    expect(text).not.toMatch(/\d:\d\d/);
+  });
+});
+
+describe('findUpcomingCalendarEvents', () => {
+  const now = new Date('2026-09-10T12:00:00');
+
+  it('오늘 포함 가까운 순으로 요청한 개수만큼 자른다', () => {
+    const events = [
+      event({ sourceId: 'd4', startAt: new Date('2026-09-25T10:00:00').toISOString() }),
+      event({ sourceId: 'd1', startAt: new Date('2026-09-10T09:00:00').toISOString() }),
+      event({ sourceId: 'd3', startAt: new Date('2026-09-20T10:00:00').toISOString() }),
+      event({ sourceId: 'd2', startAt: new Date('2026-09-12T10:00:00').toISOString() }),
+      event({ sourceId: 'past', startAt: new Date('2026-09-01T10:00:00').toISOString() }),
+    ];
+    expect(findUpcomingCalendarEvents(events, 3, now).map((e) => e.sourceId)).toEqual(['d1', 'd2', 'd3']);
+  });
+
+  it('요청 개수보다 적으면 있는 것만 돌려준다', () => {
+    const events = [event({ sourceId: 'only', startAt: new Date('2026-09-12T10:00:00').toISOString() })];
+    expect(findUpcomingCalendarEvents(events, 5, now).map((e) => e.sourceId)).toEqual(['only']);
+  });
+
+  it('다가오는 일정이 없으면 빈 배열', () => {
+    expect(findUpcomingCalendarEvents([event({ startAt: new Date('2026-08-01T10:00:00').toISOString() })], 5, now)).toEqual([]);
+  });
+
+  it('체크리스트 기한도 후보에 들어간다', () => {
+    const events = [
+      event({ sourceType: 'checklist_due', sourceId: 'c1', chapter: 'wedding', title: '"청첩장 주문" 기한', startAt: dateOnlyToStartAt('2026-09-11'), hasTime: false }),
+      event({ sourceId: 'p1', startAt: new Date('2026-09-15T10:00:00').toISOString() }),
+    ];
+    expect(findUpcomingCalendarEvents(events, 2, now).map((e) => e.sourceId)).toEqual(['c1', 'p1']);
+  });
+});
+
+describe('formatCalendarEventTime · 체크리스트 기한', () => {
+  it('기한은 시간 미정이 아니라 "이 날까지"로 적는다', () => {
+    expect(formatCalendarEventTime(event({ sourceType: 'checklist_due', hasTime: false }))).toBe('이 날까지');
+  });
+});
+
+describe('isDeadlineEvent', () => {
+  it('체크리스트 기한만 마감 표시 대상이다', () => {
+    expect(isDeadlineEvent(event({ sourceType: 'checklist_due' }))).toBe(true);
+    expect(isDeadlineEvent(event({ sourceType: 'wedding_schedule' }))).toBe(false);
+    expect(isDeadlineEvent(event({ sourceType: 'consult_note' }))).toBe(false);
   });
 });

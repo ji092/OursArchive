@@ -62,12 +62,6 @@ export function computeCategoryBudget(items: PrepItem[]): Partial<Record<Wedding
   return result;
 }
 
-export function findNextEvent(items: PrepItem[], now = new Date()): PrepItem | undefined {
-  return items
-    .filter((item) => item.schedule && new Date(item.schedule.scheduledAt) >= now)
-    .sort((a, b) => new Date(a.schedule!.scheduledAt).getTime() - new Date(b.schedule!.scheduledAt).getTime())[0];
-}
-
 export function formatWon(amount: number): string {
   return `${amount.toLocaleString('ko-KR')}원`;
 }

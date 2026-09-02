@@ -2,19 +2,30 @@ import { Link } from 'react-router-dom';
 import { IconCalendar, IconPin } from '@/shared/components/ui/icons';
 import { LoveCalendarView } from '@/features/love/components/LoveCalendarView';
 import { useLoveRecords } from '@/features/love/hooks/useLoveRecords';
-import { useCheckups } from '@/features/pregnancy/hooks/usePregnancyData';
 import { RecordThumbnail } from '@/shared/components/record/RecordThumbnail';
 import { computeChecklistProgress, computeDday } from '@/features/wedding/deriveStats';
 import { usePrepItems, useWeddingDate } from '@/features/wedding/hooks/useWeddingData';
 import { useMyMembership, useSession } from '@/shared/hooks/useAuth';
+import { useCalendarEvents } from '@/shared/hooks/useCalendarEvents';
+import {
+  calendarEventKey,
+  filterCalendarEventsByChapter,
+  findNextCalendarEvent,
+  findUpcomingCalendarEvents,
+  formatCalendarEventDateTime,
+} from '@/shared/lib/schedule/calendarEvents';
 import { useWorkspaceSettings } from '@/shared/hooks/useWorkspaceSettings';
 import { isMaster } from '@/shared/lib/rbac/permissions';
 import styles from './DashboardPage.module.css';
 
 // 함께/셋이 카드의 D+/D-DAY와 "처음" 카드는 관리 페이지에서 입력한 workspace 날짜
 // (useWorkspaceSettings)로 실시간 파생 계산한다(2026-07-23). "요즘 우리" 카드도 실데이터
-// (연애 최신 기록/결혼 다음 일정/임신 다음 검진)를 그대로 보여주고, 없으면 빈 상태를 보여준다
+// (연애 최신 기록/결혼 다음 일정/임신 다음 일정)를 그대로 보여주고, 없으면 빈 상태를 보여준다
 // (2026-07-28: mockDashboard.ts 하드코딩 문구 제거).
+//
+// "다음 일정"은 위 달력과 같은 통합 일정(useCalendarEvents)에서 고른다 — 예전에는 결혼 카드가
+// prep_item.schedule만, 임신 카드가 checkup만 보고 각자 계산해서 달력에는 있는 상담노트·
+// 신혼여행·임신 일정이 카드에서는 "없음"으로 나왔다(2026-09-02). 달력과 카드는 한 소스를 본다.
 function daysBetween(fromIso: string, now = new Date()): number {
   const from = new Date(fromIso);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -30,16 +41,6 @@ function formatShortDate(iso: string): string {
   return `${yy}/${mm}/${dd}`;
 }
 
-function formatDateTimeLabel(iso: string): string {
-  const date = new Date(iso);
-  const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-  const hours = date.getHours();
-  const ampm = hours < 12 ? '오전' : '오후';
-  const hour12 = String(hours % 12 === 0 ? 12 : hours % 12).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${date.getMonth() + 1}월 ${date.getDate()}일 (${weekday}) ${ampm} ${hour12}:${minutes}`;
-}
-
 export default function DashboardPage() {
   const { session } = useSession();
   const { data: membership } = useMyMembership(session?.user.id);
@@ -47,7 +48,7 @@ export default function DashboardPage() {
   const { data: weddingDate } = useWeddingDate();
   const { data: prepItems } = usePrepItems(membership?.workspaceId);
   const { data: loveRecords } = useLoveRecords(membership?.workspaceId);
-  const { data: checkups } = useCheckups(membership?.workspaceId);
+  const { data: calendarEvents } = useCalendarEvents(membership?.workspaceId);
   const checklistProgress = computeChecklistProgress(prepItems ?? []);
   const daysTogether = settings?.coupleStartDate ? daysBetween(settings.coupleStartDate) : 0;
   const weddingDday = weddingDate ? computeDday(weddingDate) : null;
@@ -57,14 +58,12 @@ export default function DashboardPage() {
     (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
   )[0];
 
-  const now = Date.now();
-  const nextWeddingEvent = (prepItems ?? [])
-    .filter((item) => item.schedule && new Date(item.schedule.scheduledAt).getTime() >= now)
-    .sort((a, b) => new Date(a.schedule!.scheduledAt).getTime() - new Date(b.schedule!.scheduledAt).getTime())[0];
-
-  const nextCheckup = (checkups ?? [])
-    .filter((c) => new Date(c.scheduledAt).getTime() >= now)
-    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
+  // 결혼 카드는 오늘 포함 가까운 순으로 3개까지 나열한다(2026-09-02 사용자 지정).
+  const upcomingWeddingEvents = findUpcomingCalendarEvents(
+    filterCalendarEventsByChapter(calendarEvents ?? [], ['wedding']),
+    3,
+  );
+  const nextPregnancyEvent = findNextCalendarEvent(filterCalendarEventsByChapter(calendarEvents ?? [], ['pregnancy']));
 
   return (
     <main className={styles.page}>
@@ -154,15 +153,24 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link to="/wedding" className={styles.recentCard}>
+          <Link to="/wedding/schedule" className={styles.recentCard}>
             <div className={styles.recentBody}>
               <p className={styles.recentTag}>WEDDING · 다음 일정</p>
-              {nextWeddingEvent ? (
-                <>
-                  <p className={styles.recentText}>{nextWeddingEvent.title}</p>
-                  <p className={styles.recentMeta}>{nextWeddingEvent.schedule!.location}</p>
-                  <p className={styles.recentMeta}><IconCalendar /> {formatDateTimeLabel(nextWeddingEvent.schedule!.scheduledAt)}</p>
-                </>
+              {upcomingWeddingEvents.length > 0 ? (
+                <ul className={styles.eventList}>
+                  {upcomingWeddingEvents.map((event) => (
+                    <li key={calendarEventKey(event)} className={styles.eventItem}>
+                      <span className={styles.eventBadge}>{event.badge}</span>
+                      <span className={styles.eventInfo}>
+                        <span className={styles.recentText}>{event.title}</span>
+                        <span className={styles.recentMeta}>
+                          <IconCalendar /> {formatCalendarEventDateTime(event)}
+                          {event.location && ` · ${event.location}`}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               ) : (
                 <p className={styles.recentMeta}>예정된 일정이 없어요.</p>
               )}
@@ -175,20 +183,17 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link to="/pregnancy" className={styles.recentCard}>
+          <Link to={nextPregnancyEvent?.linkTo ?? '/pregnancy'} className={styles.recentCard}>
             <div className={styles.recentBody}>
-              <p className={styles.recentTag}>PREGNANCY · 다음 검진</p>
-              {nextCheckup ? (
+              <p className={styles.recentTag}>PREGNANCY · 다음 일정</p>
+              {nextPregnancyEvent ? (
                 <>
-                  <p className={styles.recentText}>{nextCheckup.title}</p>
-                  <p className={styles.recentMeta}>
-                    {nextCheckup.hospital} · {nextCheckup.doctor}
-                  </p>
-                  <p className={styles.recentMeta}><IconCalendar /> {formatDateTimeLabel(nextCheckup.scheduledAt)}</p>
-                  <p className={styles.recentMeta}>현재 {nextCheckup.weekNo}주</p>
+                  <p className={styles.recentText}>{nextPregnancyEvent.title}</p>
+                  {nextPregnancyEvent.location && <p className={styles.recentMeta}>{nextPregnancyEvent.location}</p>}
+                  <p className={styles.recentMeta}><IconCalendar /> {formatCalendarEventDateTime(nextPregnancyEvent)}</p>
                 </>
               ) : (
-                <p className={styles.recentMeta}>예정된 검진이 없어요.</p>
+                <p className={styles.recentMeta}>예정된 일정이 없어요.</p>
               )}
             </div>
           </Link>

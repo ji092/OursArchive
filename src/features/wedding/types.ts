@@ -56,6 +56,63 @@ export interface ConsultNote {
   photos: PhotoPlaceholder[];
 }
 
+// 버킷 카테고리는 WEDDING_CATEGORIES와 별개다(2026-09-03 사용자 지정) — 버킷은 다른 테이블과
+// 관계를 맺지 않는 독립 목록이고, 비교 단위가 계약을 따로 하는 업체 단위로 훨씬 잘게 나뉜다.
+// DB의 bucket_category enum과 값·순서를 맞춰둔다(backend/migrations/0022_wedding_bucket.sql).
+export type BucketCategory =
+  | '웨딩홀'
+  | '스튜디오'
+  | '드레스'
+  | '예복'
+  | '메이크업'
+  | '헤어'
+  | '부케'
+  | '본식스냅'
+  | '본식영상'
+  | '서브스냅'
+  | '아이폰스냅'
+  | '식전식중영상'
+  | '혼주한복'
+  | '청첩장'
+  | '축의대';
+
+export const BUCKET_CATEGORIES: BucketCategory[] = [
+  '웨딩홀',
+  '스튜디오',
+  '드레스',
+  '예복',
+  '메이크업',
+  '헤어',
+  '부케',
+  '본식스냅',
+  '본식영상',
+  '서브스냅',
+  '아이폰스냅',
+  '식전식중영상',
+  '혼주한복',
+  '청첩장',
+  '축의대',
+];
+
+// 버킷(wedding_bucket) — 아직 방문 전, 카테고리별로 담아두는 관심 업체 카드(2026-09-03 사용자 지정).
+// 상담노트와 달리 날짜가 없어 달력에 서지 않는다. 사진 중 대표 1장(isCover)이 카드 썸네일이 된다.
+export interface BucketPhoto extends PhotoPlaceholder {
+  id: string;
+  isCover: boolean;
+}
+
+export interface BucketItem {
+  id: string;
+  category: BucketCategory;
+  vendorName: string;
+  address: string; // 지역/주소 — 업체 위치에 따라 헬퍼 추가금이 붙어서 비교 근거가 된다
+  lat: number | null;
+  lng: number | null;
+  linkUrl: string;
+  memo: string; // 특징 메모
+  photos: BucketPhoto[]; // 대표 사진이 맨 앞
+}
+
 export interface HoneymoonDay {
   id: string;
   dayNumber: number; // 표시 순서 겸 일차 번호 — 추가/삭제/순서변경 시 1..n으로 재계산

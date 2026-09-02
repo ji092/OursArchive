@@ -9,6 +9,9 @@ import webpush from 'npm:web-push@3';
 const DEEP_LINKS: Record<string, string> = {
   love_plan: '/love/calendar',
   wedding_schedule: '/wedding/schedule',
+  // 2026-09-03 추가 — 결혼 챕터에서 실제로 쓰는 일정 두 종류.
+  consult_note: '/wedding/consult-notes',
+  checklist_due: '/wedding/checklist',
   pregnancy_checkup: '/pregnancy/checkup',
   pregnancy_event: '/pregnancy/schedule',
 };
@@ -20,6 +23,9 @@ interface ReminderRow {
   source_type: string;
   source_id: string;
 }
+
+// 새 API 키 체계의 시크릿 키 접두사. 딕셔너리에 여러 키가 들어 있을 때 이걸 우선 고른다.
+const NEW_KEY_PREFIX = 'sb_' + 'secret_';
 
 // 실패가 계속되면 15분마다 알림이 쌓이므로, 같은 장애에 대해서는 이 간격 안에 한 번만 남긴다.
 const FAILURE_NOTICE_WINDOW_HOURS = 6;
@@ -69,24 +75,51 @@ async function recordTickFailure(supabase: SupabaseClient, message: string): Pro
 // (재배포 직후 첫 tick인 2026-08-04 11:30부터 모든 호출이 실패했다.)
 // 새 체계에서는 sb_secret_... 형식 키를 쓰고 검증은 JWKS 기반으로 바뀐다.
 //
-// 플랫폼이 주입하는 이름이 SUPABASE_SECRET_KEYS(복수)라 값이 목록일 수 있어, 첫 번째 항목만
-// 취한다. 레거시 키는 마지막 폴백으로 남겨둔다 — 다른 프로젝트나 롤백 상황에서도 동작하도록.
+// 2026-09-03: 그 뒤로 매 tick이 500 {"error":"Invalid API key"}로 실패하고 있었다(프로덕션
+// net._http_response 조회로 확인). 원인은 이 함수가 SUPABASE_SECRET_KEYS의 모양을 잘못 안 것이다 —
+// 대시보드 Default secrets 설명대로 이 값은 **JSON 딕셔너리**이지 배열도 쉼표 목록도 아니다.
+// 예전 코드는 배열과 쉼표만 다뤄서, 딕셔너리가 오면 split(',')[0]이 중괄호가 붙은 깨진 문자열을
+// 그대로 키로 썼다.
+//
+// 이름이 SUPABASE_로 시작하는 커스텀 시크릿은 대시보드가 거부하므로(예약 접두사), 사람이 다른
+// 이름으로 키를 넣어 우회할 수 없다 — 플랫폼이 주입하는 값을 제대로 읽는 것이 유일한 해결책이다.
+function pickSecretKey(values: unknown[]): string | null {
+  const strings = values.filter((v): v is string => typeof v === 'string' && v.length > 0);
+  // 새 체계 키를 우선한다. 못 찾으면 첫 문자열이라도 쓴다(다른 프로젝트/롤백 상황 대비).
+  return strings.find((v) => v.startsWith(NEW_KEY_PREFIX)) ?? strings[0] ?? null;
+}
+
 function resolveServiceKey(): string {
   const raw =
-    Deno.env.get('SUPABASE_SECRET_KEY') ??
     Deno.env.get('SUPABASE_SECRET_KEYS') ??
+    Deno.env.get('SUPABASE_SECRET_KEY') ??
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!raw) throw new Error('서버 전용 키가 환경변수에 없습니다');
 
   const trimmed = raw.trim();
+
+  // 지금 플랫폼이 주입하는 모양: 이름 → 키 문자열의 딕셔너리.
+  if (trimmed.startsWith('{')) {
+    const dict = JSON.parse(trimmed) as Record<string, unknown>;
+    const direct = pickSecretKey(Object.values(dict));
+    if (direct) return direct;
+    // 한 단계 중첩된 모양도 대비한다.
+    const nested = Object.values(dict).flatMap((v) => (v && typeof v === 'object' ? Object.values(v as object) : []));
+    const fromNested = pickSecretKey(nested);
+    if (fromNested) return fromNested;
+    throw new Error('SUPABASE_SECRET_KEYS 딕셔너리에서 키를 찾지 못했습니다');
+  }
+
   if (trimmed.startsWith('[')) {
-    const list = JSON.parse(trimmed) as unknown[];
-    const first = list.find((v) => typeof v === 'string' && v.length > 0);
-    if (typeof first === 'string') return first;
+    const key = pickSecretKey(JSON.parse(trimmed) as unknown[]);
+    if (key) return key;
     throw new Error('SUPABASE_SECRET_KEYS 목록이 비어 있습니다');
   }
+
   // 쉼표로 나열된 형태도 대비한다. 단일 값이면 split 결과가 그대로 하나다.
-  return trimmed.split(',')[0].trim();
+  const key = pickSecretKey(trimmed.split(',').map((v) => v.trim()));
+  if (!key) throw new Error('서버 전용 키를 해석하지 못했습니다');
+  return key;
 }
 
 Deno.serve(async (req) => {
