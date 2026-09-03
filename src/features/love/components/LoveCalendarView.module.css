@@ -90,17 +90,19 @@
   font-weight: 700;
 }
 
-/* 체크리스트 기한 표시 — 날짜 숫자 아래, 칸 가운데(2026-09-02). */
+/* 체크리스트 기한 표시 — 날짜 숫자 바로 옆(2026-09-03 사용자 지정).
+   숫자 아래 가운데에 두니 칸 밖으로 튀어나와 보였다. .cellDate(top 4 / left 6 / 최소폭 14) 오른쪽에 붙인다. */
 .cellDeadline {
   position: absolute;
-  top: 20px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 12px;
+  top: 4px;
+  left: 22px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1;
-  color: var(--color-accent);
+  color: var(--color-danger);
 }
 
 .cellMarker {

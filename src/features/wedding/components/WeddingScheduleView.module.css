@@ -111,17 +111,13 @@
   color: var(--color-accent);
 }
 
-/* 체크리스트 기한 표시 — 날짜 숫자 아래, 칸 가운데(2026-09-02). */
+/* 체크리스트 기한 표시 — 날짜 숫자 바로 옆(2026-09-03 사용자 지정). 칸 아래에 두니 튀어나왔다. */
 .dayCellDeadline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 3px;
-  text-align: center;
+  margin-left: 3px;
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
-  color: var(--color-accent);
+  color: var(--color-danger);
 }
 
 .dayCellSelected {
