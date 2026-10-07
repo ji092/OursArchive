@@ -173,6 +173,11 @@ export async function deleteWeddingSchedule(id: string): Promise<void> {
 export async function deletePrepItem(id: string): Promise<void> {
   // 항목이 사라지면 그 항목의 일정 확인 요청도 의미가 없다. 폴리모픽 참조라 캐스케이드가
   // 없으므로 두 소스(일정 속성 / 체크리스트 기한)를 모두 직접 지운다.
+  // (2026-10-07: wedding_schedule 쪽이 빠져 있어, 체크리스트 화면에서 일정 붙은 항목을 지우면
+  // 확인 요청이 고아로 남았다. 서버 쪽도 0025에서 원본 없는 행을 거르지만 여기서도 정리한다.)
+  await deleteScheduleAck('wedding_schedule', id).catch((cause) =>
+    reportFailure('항목은 삭제했지만 일정 알림 설정을 지우지 못했어요. 알림이 계속 올 수 있어요.', cause),
+  );
   await deleteScheduleAck('checklist_due', id).catch((cause) =>
     reportFailure('항목은 삭제했지만 기한 알림 설정을 지우지 못했어요. 알림이 계속 올 수 있어요.', cause),
   );
